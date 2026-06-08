@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>CFBundleName</key>
+    <string>Klip</string>
+    <key>CFBundleDisplayName</key>
+    <string>Klip</string>
+    <key>CFBundleIdentifier</key>
+    <string>com.useklip.Klip</string>
+    <key>CFBundleExecutable</key>
+    <string>Klip</string>
+    <key>CFBundlePackageType</key>
+    <string>APPL</string>
+    <key>CFBundleShortVersionString</key>
+    <string>0.1</string>
+    <key>CFBundleVersion</key>
+    <string>1</string>
+    <key>LSMinimumSystemVersion</key>
+    <string>14.0</string>
+
+    <!-- Menu-bar agent: no Dock icon. -->
+    <key>LSUIElement</key>
+    <true/>
+
+    <!-- AppleScript automation (Chrome/Terminal adapters). -->
+    <key>NSAppleEventsUsageDescription</key>
+    <string>Klip controls Chrome and Terminal to take you back to the exact tab or window you klipped.</string>
+
+    <!-- System-wide "Drop Klip" Services menu item. -->
+    <key>NSServices</key>
+    <array>
+        <dict>
+            <key>NSMenuItem</key>
+            <dict>
+                <key>default</key>
+                <string>Drop Klip</string>
+            </dict>
+            <key>NSMessage</key>
+            <string>dropKlip</string>
+            <key>NSPortName</key>
+            <string>Klip</string>
+            <key>NSSendTypes</key>
+            <array>
+                <string>NSStringPboardType</string>
+            </array>
+        </dict>
+    </array>
+</dict>
+</plist>
