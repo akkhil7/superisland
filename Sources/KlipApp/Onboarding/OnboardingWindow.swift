@@ -60,6 +60,10 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
         panel.hasShadow = true
         panel.isMovableByWindowBackground = true
         panel.isReleasedWhenClosed = false
+        // Keep the tour visible while the user grants permissions in System
+        // Settings etc. — an accessory app's normal-level window gets buried
+        // the moment focus leaves, and with no Dock icon it feels lost.
+        panel.level = .floating
         panel.delegate = self
         panel.contentView = hosting
         panel.center()

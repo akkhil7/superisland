@@ -178,6 +178,7 @@ private struct IntegrationsStepView: View {
     @EnvironmentObject var codexIntegration: CodexIntegration
 
     @State private var error: String?
+    private let refresh = Timer.publish(every: 2, on: .main, in: .common).autoconnect()
 
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -191,10 +192,9 @@ private struct IntegrationsStepView: View {
                     icon: "terminal.fill", name: "Terminal",
                     caption: "zsh & bash · instant exit-code status"
                 ) {
-                    if shellIntegration.isInstalled {
-                        OnboardingChip(text: "active", color: .green)
-                    } else {
-                        setUpButton { try shellIntegration.install() }
+                    installToggle(isOn: shellIntegration.isInstalled) { on in
+                        if on { try shellIntegration.install() }
+                        else { shellIntegration.uninstall() }
                     }
                 }
 
@@ -203,14 +203,13 @@ private struct IntegrationsStepView: View {
                     icon: "sparkle", name: "Claude Desktop",
                     caption: "session hooks · live even in background tabs"
                 ) {
-                    if claudeIntegration.isInstalled {
-                        OnboardingChip(text: "active", color: .green)
-                    } else {
-                        setUpButton { try claudeIntegration.install() }
+                    installToggle(isOn: claudeIntegration.isInstalled) { on in
+                        if on { try claudeIntegration.install() }
+                        else { claudeIntegration.uninstall() }
                     }
                 }
 
-                // Codex — automatic
+                // Codex — automatic, nothing to toggle
                 IntegrationRow(
                     icon: "chevron.left.forwardslash.chevron.right", name: "Codex",
                     caption: "session journals · nothing to set up"
@@ -227,20 +226,17 @@ private struct IntegrationsStepView: View {
                     icon: "globe", name: "Chrome",
                     caption: chromeCaption
                 ) {
-                    if !chromeIntegration.isNativeHostInstalled {
-                        setUpButton { try chromeIntegration.setUp() }
-                    } else if !chromeIntegration.isExtensionLoaded {
-                        HStack(spacing: 6) {
-                            Button("Open Chrome") { chromeIntegration.openChromeExtensions() }
-                                .buttonStyle(GhostPillButtonStyle())
-                            Button("Recheck") { chromeIntegration.refresh() }
-                                .buttonStyle(GhostPillButtonStyle())
+                    HStack(spacing: 8) {
+                        if chromeIntegration.isExtensionLoaded {
+                            OnboardingChip(
+                                text: chromeIntegration.isBridgeConnected ? "connected" : "loaded",
+                                color: .green
+                            )
                         }
-                    } else {
-                        OnboardingChip(
-                            text: chromeIntegration.isBridgeConnected ? "connected" : "loaded",
-                            color: .green
-                        )
+                        installToggle(isOn: chromeIntegration.isNativeHostInstalled) { on in
+                            if on { try chromeIntegration.setUp() }
+                            else { chromeIntegration.uninstallNativeHost() }
+                        }
                     }
                 }
             }
@@ -248,11 +244,14 @@ private struct IntegrationsStepView: View {
                 Text(error).font(.system(size: 11)).foregroundStyle(.red)
             }
         }
-        .onAppear {
-            shellIntegration.refresh()
-            claudeIntegration.refresh()
-            chromeIntegration.refresh()
-        }
+        .onAppear { refreshAll() }
+        .onReceive(refresh) { _ in refreshAll() }
+    }
+
+    private func refreshAll() {
+        shellIntegration.refresh()
+        claudeIntegration.refresh()
+        chromeIntegration.refresh()
     }
 
     private var chromeCaption: String {
@@ -262,12 +261,22 @@ private struct IntegrationsStepView: View {
         return "exact tabs · background included"
     }
 
-    private func setUpButton(_ action: @escaping () throws -> Void) -> some View {
-        Button("Set Up") {
-            do { try action(); error = nil }
-            catch { self.error = error.localizedDescription }
-        }
-        .buttonStyle(GlowPillButtonStyle())
+    /// Purple switch that runs install/uninstall side effects. State comes
+    /// from the integration objects, so a failed install snaps back off.
+    private func installToggle(
+        isOn: Bool, perform: @escaping (Bool) throws -> Void
+    ) -> some View {
+        Toggle("", isOn: Binding(
+            get: { isOn },
+            set: { on in
+                do { try perform(on); error = nil }
+                catch { self.error = error.localizedDescription }
+            }
+        ))
+        .labelsHidden()
+        .toggleStyle(.switch)
+        .controlSize(.small)
+        .tint(OnboardingTheme.purple)
     }
 }
 
