@@ -44,7 +44,9 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             .environmentObject(controller.codexIntegration)
 
         let hosting = NSHostingView(rootView: AnyView(
-            root.clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            root
+                .frame(width: 760, height: 560)   // NSHostingView resizes borderless windows to intrinsic size — pin it
+                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
         ))
 
         let panel = OnboardingPanel(
