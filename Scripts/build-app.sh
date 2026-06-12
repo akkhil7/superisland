@@ -34,7 +34,7 @@ mkdir -p "$RES/Onboarding"
 for f in "$ROOT/website/assets/mascot.webp" "$ROOT/website/assets/hero-aurora.webp" \
          "$ROOT/Resources/Fonts/InstrumentSerif-Regular.ttf" \
          "$ROOT/Resources/Fonts/InstrumentSerif-Italic.ttf"; do
-    [ -f "$f" ] && cp "$f" "$RES/Onboarding/"
+    [ -f "$f" ] && cp "$f" "$RES/Onboarding/" || true
 done
 
 # Sign so TCC (Accessibility / Screen Recording / Automation) can attach grants.
