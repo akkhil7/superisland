@@ -36,7 +36,8 @@ enum StatusStyle {
 
 /// Bright status tints used on the island.
 enum IslandTint {
-    static let working = Color(red: 0.16, green: 0.55, blue: 1.0)   // bright blue
+    /// Brand purple (#7b39fc) — matches the website's working/primary color.
+    static let working = Color(red: 0x7B / 255, green: 0x39 / 255, blue: 0xFC / 255)
     static let attention = Color(red: 1.0, green: 0.55, blue: 0.0)  // orange
     static let done = Color(red: 0.20, green: 0.85, blue: 0.40)     // green
 
@@ -103,7 +104,8 @@ enum NotchMetrics {
     static let windowHeight: CGFloat = 600
 }
 
-/// A glowing count badge shown on one side of the notch.
+/// A glowing orb counter shown on one side of the notch: a lit sphere with a
+/// specular highlight and a soft halo that breathes when alerting.
 struct CountBadge: View {
     let count: Int
     let color: Color
@@ -111,19 +113,39 @@ struct CountBadge: View {
 
     @State private var glowOn = false
 
+    private var lit: Bool { count > 0 }
+
     var body: some View {
-        Text("\(count)")
-            .font(.system(size: 11, weight: .bold, design: .rounded))
-            .foregroundStyle(.white)
-            .frame(width: 19, height: 19)
-            .background(Circle().fill(color.opacity(count == 0 ? 0.25 : 1)))
-            .shadow(color: (glow && count > 0) ? color : .clear, radius: glowOn ? 8 : 2)
-            .onAppear {
-                guard glow else { return }
-                withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
-                    glowOn = true
-                }
+        ZStack {
+            // Sphere body: bright core falling off to the rim.
+            Circle().fill(RadialGradient(
+                colors: lit
+                    ? [color.opacity(0.95), color.opacity(0.7), color.opacity(0.3)]
+                    : [color.opacity(0.3), color.opacity(0.15), color.opacity(0.05)],
+                center: .init(x: 0.4, y: 0.32),
+                startRadius: 1, endRadius: 15
+            ))
+            // Specular highlight — makes it read as a glass orb.
+            Circle()
+                .fill(RadialGradient(
+                    colors: [.white.opacity(lit ? 0.55 : 0.2), .clear],
+                    center: .init(x: 0.34, y: 0.26),
+                    startRadius: 0, endRadius: 8
+                ))
+            Text("\(count)")
+                .font(.system(size: 11, weight: .bold, design: .rounded))
+                .foregroundStyle(.white.opacity(lit ? 1 : 0.6))
+        }
+        .frame(width: 20, height: 20)
+        // Halo: always on while lit, breathing when alerting.
+        .shadow(color: lit ? color.opacity(0.9) : .clear, radius: glowOn ? 9 : 5)
+        .shadow(color: lit ? color.opacity(0.45) : .clear, radius: glowOn ? 16 : 9)
+        .onAppear {
+            guard glow else { return }
+            withAnimation(.easeInOut(duration: 1.1).repeatForever(autoreverses: true)) {
+                glowOn = true
             }
+        }
     }
 }
 

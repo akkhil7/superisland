@@ -1,65 +1,90 @@
 import Foundation
-import Combine
 import KlipCore
+import ServiceManagement
 
-/// User-tunable settings, backed by UserDefaults (and Keychain for the API key).
+/// User preferences, backed by UserDefaults. The API key lives in Keychain
+/// (see Keychain.swift) and is not exposed in Settings UI — key distribution
+/// is handled externally for the shipped product.
 @MainActor
 final class Settings: ObservableObject {
     private let defaults = UserDefaults.standard
 
-    @Published var model: String {
-        didSet { defaults.set(model, forKey: Keys.model) }
-    }
-    /// Seconds the window must be quiet before we evaluate.
-    @Published var settleInterval: Double {
-        didSet { defaults.set(settleInterval, forKey: Keys.settle) }
-    }
-    /// Seconds between cheap polls of each klipped window.
-    @Published var pollInterval: Double {
-        didSet { defaults.set(pollInterval, forKey: Keys.poll) }
-    }
-    /// Long fallback interval that forces an evaluation.
-    @Published var fallbackInterval: Double {
-        didSet { defaults.set(fallbackInterval, forKey: Keys.fallback) }
-    }
-    /// Whether to capture window screenshots (needs Screen Recording). Off by
-    /// default so Klip runs text-only — no Screen Recording permission, no
-    /// prompts — unless the user opts in for better classification accuracy.
+    /// Capture window screenshots for richer AI context (needs Screen Recording).
+    /// Off by default — text-only mode works without that permission.
     @Published var useScreenshots: Bool {
         didSet { defaults.set(useScreenshots, forKey: Keys.useScreenshots) }
     }
-    /// Whether an API key is present (mirrors Keychain; for UI display).
-    @Published var hasAPIKey: Bool
+
+    /// Persist encrypted local visual state for generic-app restore guidance.
+    @Published var rememberVisualState: Bool {
+        didSet { defaults.set(rememberVisualState, forKey: Keys.rememberVisualState) }
+    }
+
+    /// Expand the notch island on hover (true) or only on click (false).
+    @Published var islandExpandOnHover: Bool {
+        didSet { defaults.set(islandExpandOnHover, forKey: Keys.islandExpandOnHover) }
+    }
+
+    /// Register Klip as a Login Item.
+    @Published var launchAtLogin: Bool {
+        didSet {
+            defaults.set(launchAtLogin, forKey: Keys.launchAtLogin)
+            if launchAtLogin {
+                try? SMAppService.mainApp.register()
+            } else {
+                try? SMAppService.mainApp.unregister()
+            }
+        }
+    }
+
+    /// Minutes after a klip reaches "done" before it is automatically dismissed.
+    /// 0 = never.
+    @Published var autoDismissMinutes: Int {
+        didSet { defaults.set(autoDismissMinutes, forKey: Keys.autoDismiss) }
+    }
+
+    /// Carbon virtual key code for the drop-klip hotkey. Default = kVK_ANSI_K (40).
+    @Published var hotkeyKeyCode: Int {
+        didSet { defaults.set(hotkeyKeyCode, forKey: Keys.hotkeyKeyCode) }
+    }
+
+    /// Carbon modifier flags for the drop-klip hotkey. Default = optionKey | cmdKey.
+    @Published var hotkeyModifiers: Int {
+        didSet { defaults.set(hotkeyModifiers, forKey: Keys.hotkeyModifiers) }
+    }
 
     enum Keys {
-        static let model = "model"
-        static let settle = "settleInterval"
-        static let poll = "pollInterval"
-        static let fallback = "fallbackInterval"
-        static let useScreenshots = "useScreenshots"
+        static let useScreenshots  = "useScreenshots"
+        static let rememberVisualState = "rememberVisualState"
+        static let islandExpandOnHover = "islandExpandOnHover"
+        static let launchAtLogin   = "launchAtLogin"
+        static let autoDismiss     = "autoDismissMinutes"
+        static let hotkeyKeyCode   = "hotkeyKeyCode"
+        static let hotkeyModifiers = "hotkeyModifiers"
     }
+
+    static let defaultKeyCode: Int  = 40    // kVK_ANSI_K
+    static let defaultModifiers: Int = 2304 // optionKey | cmdKey
 
     init() {
-        model = defaults.string(forKey: Keys.model) ?? ClassifierProtocolBuilder.defaultModel
-        settleInterval = defaults.object(forKey: Keys.settle) as? Double ?? 6
-        pollInterval = defaults.object(forKey: Keys.poll) as? Double ?? 5
-        fallbackInterval = defaults.object(forKey: Keys.fallback) as? Double ?? 180
-        useScreenshots = defaults.object(forKey: Keys.useScreenshots) as? Bool ?? false
-        hasAPIKey = (Keychain.apiKey()?.isEmpty == false)
-    }
-
-    func setAPIKey(_ key: String) {
-        Keychain.setAPIKey(key)
-        hasAPIKey = !key.isEmpty
+        useScreenshots    = defaults.object(forKey: Keys.useScreenshots) as? Bool ?? false
+        rememberVisualState = defaults.object(forKey: Keys.rememberVisualState) as? Bool ?? false
+        islandExpandOnHover = defaults.object(forKey: Keys.islandExpandOnHover) as? Bool ?? true
+        launchAtLogin     = SMAppService.mainApp.status == .enabled
+        autoDismissMinutes = defaults.object(forKey: Keys.autoDismiss) as? Int ?? 0
+        let storedKeyCode = defaults.object(forKey: Keys.hotkeyKeyCode) as? Int ?? Self.defaultKeyCode
+        let storedModifiers = defaults.object(forKey: Keys.hotkeyModifiers) as? Int ?? Self.defaultModifiers
+        let normalizedShortcut = HotkeyShortcutPolicy.normalized(
+            keyCode: storedKeyCode,
+            modifiers: storedModifiers,
+            defaultKeyCode: Self.defaultKeyCode,
+            defaultModifiers: Self.defaultModifiers
+        )
+        hotkeyKeyCode = normalizedShortcut.keyCode
+        hotkeyModifiers = normalizedShortcut.modifiers
+        defaults.set(hotkeyKeyCode, forKey: Keys.hotkeyKeyCode)
+        defaults.set(hotkeyModifiers, forKey: Keys.hotkeyModifiers)
     }
 
     func apiKey() -> String? { Keychain.apiKey() }
-
-    /// Available models for the picker. Opus is the accurate default; Haiku is
-    /// the cheap/fast option for frequent checks.
-    static let availableModels = [
-        "claude-opus-4-8",
-        "claude-sonnet-4-6",
-        "claude-haiku-4-5",
-    ]
 }

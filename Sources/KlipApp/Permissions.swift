@@ -25,6 +25,28 @@ final class PermissionsManager: ObservableObject {
         refresh()
     }
 
+    /// Clear Klip's own TCC entry for a service and re-prompt. This is the fix
+    /// for a *stale grant*: when the app's code signature changes (rebuild with
+    /// a different identity), System Settings still shows the toggle as ON but
+    /// the OS no longer honors it — and re-toggling does nothing. Resetting the
+    /// entry makes macOS treat the app as never-asked, so a fresh, working
+    /// prompt appears.
+    func resetStaleGrant(service: String) {
+        guard let bundleID = Bundle.main.bundleIdentifier else { return }
+        let p = Process()
+        p.executableURL = URL(fileURLWithPath: "/usr/bin/tccutil")
+        p.arguments = ["reset", service, bundleID]
+        try? p.run()
+        p.waitUntilExit()
+
+        switch service {
+        case "Accessibility": requestAccessibility()
+        case "ScreenCapture": requestScreenRecording()
+        default: break
+        }
+        refresh()
+    }
+
     /// Prompt for Screen Recording — only if not already granted. Calling the
     /// request API while unauthorized is what surfaces the system dialog; we
     /// skip it entirely when access is already present.

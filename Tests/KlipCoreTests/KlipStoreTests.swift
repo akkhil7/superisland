@@ -66,7 +66,26 @@ final class KlipStoreTests: XCTestCase {
     func testLocatorCodableRoundTrip() throws {
         let locators: [Locator] = [
             .generic(axWindowTitle: "Notes", axWindowIndex: 0),
-            .chrome(windowIndex: 2, tabIndex: 5, url: "https://x.com", title: "X"),
+            .chrome(
+                windowID: 9,
+                windowIndex: 2,
+                tabIndex: 5,
+                tabID: 1234,
+                url: "https://x.com",
+                title: "X",
+                documentID: "doc-1",
+                taskAnchor: ChromeTaskAnchor(kind: .document, label: "X")
+            ),
+            .chrome(
+                windowID: nil,
+                windowIndex: 1,
+                tabIndex: 0,
+                tabID: nil,
+                url: nil,
+                title: nil,
+                documentID: nil,
+                taskAnchor: nil
+            ),
             .terminal(windowIndex: 1, tabIndex: 3, tty: "ttys002"),
         ]
         for loc in locators {

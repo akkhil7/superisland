@@ -139,6 +139,15 @@ struct GeneralSettingsPane: View {
                         title: "Auto-dismiss done klips"
                     )
                 }
+                Picker(selection: $settings.islandExpandOnHover) {
+                    Text("On hover").tag(true)
+                    Text("On click").tag(false)
+                } label: {
+                    SettingsRowLabel(
+                        icon: "cursorarrow.motionlines", color: .indigo,
+                        title: "Expand island"
+                    )
+                }
             }
 
             Section {

@@ -33,6 +33,79 @@ enum AX {
         return _AXUIElementGetWindow(window, &id) == .success ? id : nil
     }
 
+    /// Electron apps (Claude Desktop, Slack, VS Code, …) ship an empty AX tree
+    /// until a client opts in by setting `AXManualAccessibility` on the app
+    /// element. Idempotent and harmless for non-Electron apps (the attribute is
+    /// simply unsupported there).
+    static func enableManualAccessibility(pid: pid_t) {
+        let app = AXUIElementCreateApplication(pid)
+        AXUIElementSetAttributeValue(app, "AXManualAccessibility" as CFString, kCFBooleanTrue)
+    }
+
+    /// URL of the window's web content, if any. Chromium/Electron windows
+    /// expose `AXWebArea` elements carrying `AXURL` — and the URL tracks the
+    /// SPA route, so it changes when the user switches the app's internal tab
+    /// (e.g. Claude Desktop sessions). Returns the *deepest* web area's URL:
+    /// the outer one is the `file://` app shell, the nested one is the live
+    /// content.
+    static func webContentURL(of window: AXUIElement) -> String? {
+        var best: (depth: Int, url: String)?
+        var nodeBudget = 3000
+
+        func visit(_ element: AXUIElement, depth: Int) {
+            guard depth < 30, nodeBudget > 0 else { return }
+            nodeBudget -= 1
+            if stringAttribute(element, kAXRoleAttribute as String) == "AXWebArea",
+               let raw = attribute(element, "AXURL"),
+               let url = (raw as? URL)?.absoluteString ?? (raw as? String),
+               !url.isEmpty {
+                if best == nil || depth > best!.depth || (depth == best!.depth && !url.hasPrefix("file:")) {
+                    best = (depth, url)
+                }
+            }
+            for child in elementsAttribute(element, kAXChildrenAttribute as String) {
+                visit(child, depth: depth + 1)
+            }
+        }
+
+        visit(window, depth: 0)
+        return best?.url
+    }
+
+    /// Path of the document the window represents, if the app sets one
+    /// (`AXDocument`). VS Code / Cursor keep it pointed at the active editor
+    /// file, which gives an exact "right file" locator with zero setup.
+    static func documentPath(of window: AXUIElement) -> String? {
+        guard let raw = stringAttribute(window, kAXDocumentAttribute as String),
+              !raw.isEmpty
+        else { return nil }
+        if raw.hasPrefix("file://"), let url = URL(string: raw) { return url.path }
+        return raw
+    }
+
+    /// Whether the app's keyboard focus is inside an integrated terminal —
+    /// detected by walking the focused element and a few ancestors looking for
+    /// "terminal" in their role description, description, or title (VS Code /
+    /// Cursor label their xterm panes this way).
+    static func focusedElementLooksLikeTerminal(pid: pid_t) -> Bool {
+        let app = AXUIElementCreateApplication(pid)
+        var element = elementAttribute(app, kAXFocusedUIElementAttribute as String)
+        var hops = 0
+        while let el = element, hops < 6 {
+            let texts = [
+                stringAttribute(el, kAXRoleDescriptionAttribute as String),
+                stringAttribute(el, kAXDescriptionAttribute as String),
+                stringAttribute(el, kAXTitleAttribute as String),
+            ]
+            if texts.contains(where: { $0?.localizedCaseInsensitiveContains("terminal") == true }) {
+                return true
+            }
+            element = elementAttribute(el, kAXParentAttribute as String)
+            hops += 1
+        }
+        return false
+    }
+
     /// Bring a specific AX window to the front: unminimize, raise, and activate
     /// its owning app. This is the generic refocus path that works for any app.
     @discardableResult

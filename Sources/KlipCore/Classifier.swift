@@ -22,11 +22,14 @@ public struct Classification: Equatable, Sendable {
     public var status: KlipStatus
     public var reason: String
     public var confidence: Double
+    /// Short AI-generated label for the task (≤5 words). nil if not provided.
+    public var label: String?
 
-    public init(status: KlipStatus, reason: String, confidence: Double) {
+    public init(status: KlipStatus, reason: String, confidence: Double, label: String? = nil) {
         self.status = status
         self.reason = reason
         self.confidence = confidence
+        self.label = label
     }
 }
 
@@ -45,25 +48,44 @@ public enum ClassifierProtocolBuilder {
     /// Default model. Per Anthropic guidance we default to the latest Opus;
     /// the app exposes this in Settings so the user can pick a cheaper model
     /// (e.g. `claude-haiku-4-5`) for high-frequency checks.
-    public static let defaultModel = "claude-opus-4-8"
+    public static let defaultModel = "claude-haiku-4-5"
     public static let apiVersion = "2023-06-01"
     public static let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
 
     public static let systemPrompt = """
     You monitor a single application window on a user's Mac to tell them when a \
     long-running task needs them. Classify the window's CURRENT state into exactly one of:
-    - "working": the task is still running / producing output / mid-progress.
-    - "needsAttention": the task has stopped and is waiting for the user — a prompt, \
-    a question, a confirmation, a password/input field, or a blocking error the user must resolve.
-    - "done": the task has finished successfully and needs nothing further.
-    - "unknown": you genuinely cannot tell.
+    - "working": a task is actively running or producing output.
+    - "needsAttention": a task ran, then stopped, and is now explicitly waiting for \
+    the user — a question, confirmation, password prompt, or blocking error.
+    - "done": a task finished successfully and needs nothing further.
+    - "unknown": no task evidence — an empty or idle window with no preceding \
+    command output, a fresh terminal, or a state you genuinely cannot read.
 
-    Judge only the latest visible state, not scrollback history. A shell sitting at an \
-    idle prompt after output usually means "done". A visible question or input request \
-    means "needsAttention".
+    CRITICAL: A bare shell prompt ($, %, >, ➜, or similar) with NO preceding command \
+    output means no task was ever running — classify as "unknown", NOT "needsAttention". \
+    Only classify "needsAttention" if you can see actual task output followed by a \
+    question or input request. An idle shell after output means "done".
+
+    If a screenshot is provided, read the task state from the screenshot — it is \
+    the primary evidence when the window text is thin or missing. For AI-assistant \
+    apps (Claude, ChatGPT, Cursor, …): a streaming/typing response or a visible \
+    stop button means "working"; a completed response means "done"; a permission \
+    or confirmation dialog means "needsAttention".
+
+    For AI coding editors (Cursor, VS Code with an agent/chat panel): judge by the \
+    agent panel, not the code. An agent generating, running tools, or applying edits \
+    means "working". The agent asking ANYTHING of the user — approve a command, \
+    accept/reject edits, answer a question, provide more information or input — \
+    means "needsAttention". A finished agent response with no pending request means \
+    "done". Plain code editing with no agent activity means "unknown".
+
+    Also generate a "label": a ≤5-word title describing what the task IS (not its status). \
+    Examples: "npm build", "pytest suite", "git push origin", "Claude agent", "Docker image build". \
+    If there is no discernible task, use a short app description like "Terminal session".
 
     Respond with ONLY a JSON object, no prose, no markdown fences:
-    {"status": "...", "reason": "<=12 words", "confidence": 0.0-1.0}
+    {"status": "...", "reason": "<=12 words", "label": "<=5 words", "confidence": 0.0-1.0}
     """
 
     /// Build the JSON request body. `screenshotBase64` is the base64 of a PNG, if any.
@@ -96,7 +118,7 @@ public enum ClassifierProtocolBuilder {
 
         return [
             "model": model,
-            "max_tokens": 200,
+            "max_tokens": 256,
             "system": systemPrompt,
             "messages": [
                 ["role": "user", "content": content],
@@ -127,7 +149,8 @@ public enum ClassifierProtocolBuilder {
         let confidence = (obj["confidence"] as? Double)
             ?? (obj["confidence"] as? NSNumber)?.doubleValue
             ?? 0.0
-        return Classification(status: status, reason: reason, confidence: confidence)
+        let label = obj["label"] as? String
+        return Classification(status: status, reason: reason, confidence: confidence, label: label)
     }
 
     /// Find the first balanced `{...}` JSON object in arbitrary text and decode it.

@@ -3,7 +3,7 @@ import AppKit
 import Carbon.HIToolbox
 import KlipCore
 
-/// The 8-step journey. Steps read the live integration objects; the window
+/// The 4-step journey. Steps read the live integration objects; the window
 /// controller supplies `onFinish`.
 struct OnboardingView: View {
     @EnvironmentObject var controller: AppController
@@ -25,9 +25,10 @@ struct OnboardingView: View {
             OnboardingBackground()
             VStack(spacing: 0) {
                 content
-                    .frame(maxWidth: .infinity, maxHeight: .infinity)
-                    .padding(.horizontal, 56)
-                    .padding(.top, 44)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                    .padding(.horizontal, 52)
+                    .padding(.top, 30)
+                    .clipped()   // content may never push the nav rail out
                     .id(index)
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .offset(x: 28)),
@@ -42,12 +43,8 @@ struct OnboardingView: View {
     @ViewBuilder private var content: some View {
         switch step {
         case .welcome: WelcomeStepView()
-        case .story: StoryStepView()
         case .accessibility: AccessibilityStepView()
-        case .terminal: TerminalStepView()
-        case .claude: ClaudeStepView()
-        case .codex: CodexStepView()
-        case .chrome: ChromeStepView()
+        case .integrations: IntegrationsStepView()
         case .finish: FinishStepView()
         }
     }
@@ -82,8 +79,8 @@ struct OnboardingView: View {
             .buttonStyle(GlowPillButtonStyle())
             .keyboardShortcut(.defaultAction)
         }
-        .padding(.horizontal, 28)
-        .padding(.vertical, 22)
+        .padding(.horizontal, 26)
+        .padding(.vertical, 18)
     }
 
     private var primaryLabel: String {
@@ -95,107 +92,34 @@ struct OnboardingView: View {
     }
 }
 
-// MARK: - Shared step scaffolding
-
-private struct StepHeader: View {
-    let eyebrow: String
-    let title: Text
-    var subtitle: String? = nil
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text(eyebrow.uppercased())
-                .font(.system(size: 10, weight: .bold, design: .monospaced))
-                .tracking(2.2)
-                .foregroundStyle(OnboardingTheme.lavender)
-            title
-                .font(.system(size: 30, weight: .bold))
-                .foregroundStyle(OnboardingTheme.heading)
-            if let subtitle {
-                Text(subtitle)
-                    .font(.system(size: 13))
-                    .foregroundStyle(OnboardingTheme.body)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 // MARK: - 1 · Welcome
 
 private struct WelcomeStepView: View {
     var body: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 20) {
             if let mascot = OnboardingTheme.art("mascot.webp") {
                 Image(nsImage: mascot)
                     .resizable()
                     .scaledToFit()
-                    .frame(height: 150)
+                    .frame(height: 160)
                     .shadow(color: OnboardingTheme.glow, radius: 30)
             }
-            (Text("Never babysit\na ").font(.system(size: 38, weight: .bold))
-                + Text("window").font(OnboardingTheme.serifAccent(40))
-                + Text(" again").font(.system(size: 38, weight: .bold)))
+            (Text("Never babysit a ").font(.system(size: 36, weight: .bold))
+                + Text("window").font(OnboardingTheme.serifAccent(38))
+                + Text(" again").font(.system(size: 36, weight: .bold)))
                 .foregroundStyle(OnboardingTheme.heading)
                 .multilineTextAlignment(.center)
-            Text("Klip bookmarks your long-running work — builds, deploys, Claude, Codex — and pulls you back to the exact window or tab the moment it needs you.")
+            Text("Klip watches your long-running work and pulls you back the moment it needs you.")
                 .font(.system(size: 13))
                 .foregroundStyle(OnboardingTheme.body)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 440)
+                .frame(maxWidth: 400)
         }
         .frame(maxWidth: .infinity)
     }
 }
 
-// MARK: - 2 · The Klip way
-
-private struct StoryStepView: View {
-    private let rows: [(icon: String, title: String, detail: String)] = [
-        ("terminal.fill", "Shells tell Klip when commands finish",
-         "A zsh/bash hook reports start and exit — status flips in milliseconds, with the exit code."),
-        ("globe", "Chrome tells Klip which tab matters",
-         "A lightweight extension tracks tab identity and page signals — even in background tabs."),
-        ("sparkle", "Agents report themselves",
-         "Claude Code hooks and Codex session journals stream ground truth: working, needs approval, done."),
-        ("brain.head.profile", "AI covers everything else",
-         "For apps with no signal, Claude classifies the window — and only when content actually settles."),
-    ]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StepHeader(
-                eyebrow: "The Klip way",
-                title: Text("The best truth source ")
-                    + Text("for every app").font(OnboardingTheme.serifAccent(31))
-            )
-            VStack(spacing: 10) {
-                ForEach(rows, id: \.title) { row in
-                    OnboardingGlassCard {
-                        HStack(spacing: 13) {
-                            Image(systemName: row.icon)
-                                .font(.system(size: 15, weight: .semibold))
-                                .foregroundStyle(OnboardingTheme.purpleLight)
-                                .frame(width: 24)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text(row.title)
-                                    .font(.system(size: 13, weight: .semibold))
-                                    .foregroundStyle(OnboardingTheme.heading)
-                                Text(row.detail)
-                                    .font(.system(size: 11.5))
-                                    .foregroundStyle(OnboardingTheme.body)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-// MARK: - 3 · Accessibility
+// MARK: - 2 · Accessibility
 
 private struct AccessibilityStepView: View {
     @EnvironmentObject var permissions: PermissionsManager
@@ -203,26 +127,19 @@ private struct AccessibilityStepView: View {
     private var granted: Bool { permissions.accessibility == .granted }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StepHeader(
-                eyebrow: "One permission",
-                title: Text("Klip needs ")
-                    + Text("Accessibility").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "It's how Klip reads window text and raises the exact window when you click a klip. Without it, nothing works — this is the only required permission."
+        VStack(alignment: .leading, spacing: 16) {
+            StepTitle(
+                plain: "One permission: ", accent: "Accessibility",
+                subtitle: "How Klip reads windows and brings them back. Required."
             )
             OnboardingGlassCard {
                 HStack {
                     Image(systemName: "accessibility")
                         .font(.system(size: 22))
                         .foregroundStyle(OnboardingTheme.purpleLight)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Accessibility")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(OnboardingTheme.heading)
-                        Text("System Settings → Privacy & Security")
-                            .font(.system(size: 11))
-                            .foregroundStyle(OnboardingTheme.body)
-                    }
+                    Text("Accessibility")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(OnboardingTheme.heading)
                     Spacer()
                     if granted {
                         OnboardingChip(text: "granted", color: .green)
@@ -239,7 +156,7 @@ private struct AccessibilityStepView: View {
                 Button {
                     permissions.resetStaleGrant(service: "Accessibility")
                 } label: {
-                    Label("Toggle is ON but Klip still shows “not granted”? Reset & re-prompt.",
+                    Label("Already ON in System Settings? Reset & re-prompt.",
                           systemImage: "arrow.counterclockwise")
                         .font(.system(size: 11))
                         .foregroundStyle(OnboardingTheme.lavender)
@@ -250,196 +167,78 @@ private struct AccessibilityStepView: View {
     }
 }
 
-// MARK: - 4 · Terminal
+// MARK: - 3 · Integrations (all on one screen)
 
-private struct TerminalStepView: View {
+private struct IntegrationsStepView: View {
     @EnvironmentObject var shellIntegration: ShellIntegration
+    @EnvironmentObject var claudeIntegration: ClaudeIntegration
+    @EnvironmentObject var chromeIntegration: ChromeIntegration
+    @EnvironmentObject var codexIntegration: CodexIntegration
+
     @State private var error: String?
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StepHeader(
-                eyebrow: "Integration 1 of 4",
-                title: Text("Your shell, ")
-                    + Text("wired in").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "One hook in zsh and bash tells Klip the instant any command finishes — in Terminal, iTerm2, Warp, anywhere. Exit 0 → done. Anything else → needs you."
+        VStack(alignment: .leading, spacing: 14) {
+            StepTitle(
+                plain: "Wire in ", accent: "your tools",
+                subtitle: "Each one reports its own truth — no screenshots, no guessing."
             )
-            OnboardingGlassCard {
-                HStack {
-                    Image(systemName: "terminal.fill")
-                        .font(.system(size: 20))
-                        .foregroundStyle(OnboardingTheme.purpleLight)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Shell Integration")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(OnboardingTheme.heading)
-                        Text(shellIntegration.isInstalled
-                             ? "Restart open terminals to connect them."
-                             : "Adds one line to ~/.zshrc and ~/.bashrc.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(OnboardingTheme.body)
-                    }
-                    Spacer()
+            VStack(spacing: 8) {
+                // Terminal
+                IntegrationRow(
+                    icon: "terminal.fill", name: "Terminal",
+                    caption: "zsh & bash · instant exit-code status"
+                ) {
                     if shellIntegration.isInstalled {
-                        OnboardingChip(
-                            text: shellIntegration.activeSessions > 0
-                                ? "\(shellIntegration.activeSessions) connected" : "active",
-                            color: .green
-                        )
+                        OnboardingChip(text: "active", color: .green)
                     } else {
-                        Button("Set Up") { install() }
-                            .buttonStyle(GlowPillButtonStyle())
+                        setUpButton { try shellIntegration.install() }
                     }
                 }
-            }
-            if let error {
-                Text(error).font(.system(size: 11)).foregroundStyle(.red)
-            }
-        }
-        .onAppear { shellIntegration.refresh() }
-    }
 
-    private func install() {
-        do { try shellIntegration.install(); error = nil }
-        catch { self.error = "Setup failed: \(error.localizedDescription)" }
-    }
-}
-
-// MARK: - 5 · Claude Desktop
-
-private struct ClaudeStepView: View {
-    @EnvironmentObject var claudeIntegration: ClaudeIntegration
-    @State private var error: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StepHeader(
-                eyebrow: "Integration 2 of 4",
-                title: Text("Claude reports ")
-                    + Text("itself").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "Claude Code hooks stream session events straight to Klip: working, finished, needs your input — even for background tabs, with zero AI calls."
-            )
-            OnboardingGlassCard {
-                HStack {
-                    Image(systemName: "sparkle")
-                        .font(.system(size: 20))
-                        .foregroundStyle(OnboardingTheme.purpleLight)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Claude Desktop")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(OnboardingTheme.heading)
-                        Text(claudeIntegration.isInstalled
-                             ? "Applies to sessions started from now on."
-                             : "Adds hook entries to ~/.claude/settings.json.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(OnboardingTheme.body)
-                    }
-                    Spacer()
+                // Claude Desktop
+                IntegrationRow(
+                    icon: "sparkle", name: "Claude Desktop",
+                    caption: "session hooks · live even in background tabs"
+                ) {
                     if claudeIntegration.isInstalled {
                         OnboardingChip(text: "active", color: .green)
                     } else {
-                        Button("Set Up") { install() }
-                            .buttonStyle(GlowPillButtonStyle())
+                        setUpButton { try claudeIntegration.install() }
                     }
                 }
-            }
-            if let error {
-                Text(error).font(.system(size: 11)).foregroundStyle(.red)
-            }
-        }
-        .onAppear { claudeIntegration.refresh() }
-    }
 
-    private func install() {
-        do { try claudeIntegration.install(); error = nil }
-        catch { self.error = "Setup failed: \(error.localizedDescription)" }
-    }
-}
-
-// MARK: - 6 · Codex
-
-private struct CodexStepView: View {
-    @EnvironmentObject var codexIntegration: CodexIntegration
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StepHeader(
-                eyebrow: "Integration 3 of 4",
-                title: Text("Codex is ")
-                    + Text("already live").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "Nothing to set up. Klip reads Codex's own session journals — thread names, working / finished / needs-approval, and Codex's last message — and deep-links you back to the exact thread."
-            )
-            OnboardingGlassCard {
-                HStack {
-                    Image(systemName: "chevron.left.forwardslash.chevron.right")
-                        .font(.system(size: 20))
-                        .foregroundStyle(OnboardingTheme.purpleLight)
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("Codex")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(OnboardingTheme.heading)
-                        Text("Prompt a thread, then klip it — that's the whole gesture.")
-                            .font(.system(size: 11))
-                            .foregroundStyle(OnboardingTheme.body)
-                    }
-                    Spacer()
+                // Codex — automatic
+                IntegrationRow(
+                    icon: "chevron.left.forwardslash.chevron.right", name: "Codex",
+                    caption: "session journals · nothing to set up"
+                ) {
                     OnboardingChip(
                         text: codexIntegration.knownThreadCount > 0
-                            ? "\(codexIntegration.knownThreadCount) threads found" : "ready",
+                            ? "\(codexIntegration.knownThreadCount) threads" : "ready",
                         color: .green
                     )
                 }
-            }
-        }
-    }
-}
 
-// MARK: - 7 · Chrome
-
-private struct ChromeStepView: View {
-    @EnvironmentObject var chromeIntegration: ChromeIntegration
-    @State private var error: String?
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
-            StepHeader(
-                eyebrow: "Integration 4 of 4",
-                title: Text("Exact tabs in ")
-                    + Text("Chrome").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "The Klip extension tracks the exact tab — identity, page signals, background or not — far beyond what screenshots can see."
-            )
-            OnboardingGlassCard {
-                VStack(alignment: .leading, spacing: 12) {
-                    HStack {
-                        Image(systemName: "globe")
-                            .font(.system(size: 20))
-                            .foregroundStyle(OnboardingTheme.purpleLight)
-                        Text("Chrome Extension")
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(OnboardingTheme.heading)
-                        Spacer()
-                        OnboardingChip(text: chromeStatus.0, color: chromeStatus.1)
-                    }
+                // Chrome
+                IntegrationRow(
+                    icon: "globe", name: "Chrome",
+                    caption: chromeCaption
+                ) {
                     if !chromeIntegration.isNativeHostInstalled {
-                        Button("Set Up Chrome Integration") { setUp() }
-                            .buttonStyle(GlowPillButtonStyle())
+                        setUpButton { try chromeIntegration.setUp() }
                     } else if !chromeIntegration.isExtensionLoaded {
-                        Text("Native host installed. In Chrome: turn on Developer mode, then drag the revealed ChromeExtension folder onto the extensions page.")
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(OnboardingTheme.body)
-                            .fixedSize(horizontal: false, vertical: true)
-                        HStack(spacing: 10) {
-                            Button("Open Chrome Extensions") { chromeIntegration.openChromeExtensions() }
+                        HStack(spacing: 6) {
+                            Button("Open Chrome") { chromeIntegration.openChromeExtensions() }
                                 .buttonStyle(GhostPillButtonStyle())
-                            Button("Reveal Folder") { chromeIntegration.revealExtensionFolder() }
-                                .buttonStyle(GhostPillButtonStyle())
-                            Button("Check Again") { chromeIntegration.refresh() }
+                            Button("Recheck") { chromeIntegration.refresh() }
                                 .buttonStyle(GhostPillButtonStyle())
                         }
                     } else {
-                        Text("Connected. Chrome klips now track their exact tab, even in the background.")
-                            .font(.system(size: 11.5))
-                            .foregroundStyle(OnboardingTheme.body)
+                        OnboardingChip(
+                            text: chromeIntegration.isBridgeConnected ? "connected" : "loaded",
+                            color: .green
+                        )
                     }
                 }
             }
@@ -447,23 +246,60 @@ private struct ChromeStepView: View {
                 Text(error).font(.system(size: 11)).foregroundStyle(.red)
             }
         }
-        .onAppear { chromeIntegration.refresh() }
+        .onAppear {
+            shellIntegration.refresh()
+            claudeIntegration.refresh()
+            chromeIntegration.refresh()
+        }
     }
 
-    private var chromeStatus: (String, Color) {
-        if chromeIntegration.isBridgeConnected { return ("connected", .green) }
-        if chromeIntegration.isExtensionLoaded { return ("loaded", .green) }
-        if chromeIntegration.isNativeHostInstalled { return ("waiting for Chrome", .orange) }
-        return ("not set up", .gray)
+    private var chromeCaption: String {
+        if chromeIntegration.isNativeHostInstalled, !chromeIntegration.isExtensionLoaded {
+            return "drag the revealed folder onto chrome://extensions"
+        }
+        return "exact tabs · background included"
     }
 
-    private func setUp() {
-        do { try chromeIntegration.setUp(); error = nil }
-        catch { self.error = error.localizedDescription }
+    private func setUpButton(_ action: @escaping () throws -> Void) -> some View {
+        Button("Set Up") {
+            do { try action(); error = nil }
+            catch { self.error = error.localizedDescription }
+        }
+        .buttonStyle(GlowPillButtonStyle())
     }
 }
 
-// MARK: - 8 · Finish
+/// One compact integration row: icon · name + caption · trailing status/action.
+private struct IntegrationRow<Trailing: View>: View {
+    let icon: String
+    let name: String
+    let caption: String
+    @ViewBuilder var trailing: Trailing
+
+    var body: some View {
+        OnboardingGlassCard {
+            HStack(spacing: 12) {
+                Image(systemName: icon)
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundStyle(OnboardingTheme.purpleLight)
+                    .frame(width: 24)
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(name)
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(OnboardingTheme.heading)
+                    Text(caption)
+                        .font(.system(size: 11, weight: .regular, design: .monospaced))
+                        .foregroundStyle(OnboardingTheme.body)
+                        .lineLimit(1)
+                }
+                Spacer(minLength: 8)
+                trailing
+            }
+        }
+    }
+}
+
+// MARK: - 4 · Finish
 
 private struct FinishStepView: View {
     @EnvironmentObject var settings: Settings
@@ -479,19 +315,41 @@ private struct FinishStepView: View {
     }
 
     var body: some View {
-        VStack(spacing: 24) {
-            (Text("Drop your ").font(.system(size: 34, weight: .bold))
-                + Text("first klip").font(OnboardingTheme.serifAccent(36)))
+        VStack(spacing: 22) {
+            (Text("Drop your ").font(.system(size: 32, weight: .bold))
+                + Text("first klip").font(OnboardingTheme.serifAccent(34)))
                 .foregroundStyle(OnboardingTheme.heading)
             HStack(spacing: 10) {
                 ForEach(keycaps, id: \.self) { Keycap(symbol: $0) }
             }
-            Text("Focus any window with work in progress and press the shortcut. The island by the notch keeps watch — click a klip there to jump straight back.")
+            Text("Press it on any window with work in progress. The island by the notch takes it from there.")
                 .font(.system(size: 13))
                 .foregroundStyle(OnboardingTheme.body)
                 .multilineTextAlignment(.center)
-                .frame(maxWidth: 430)
+                .frame(maxWidth: 380)
         }
         .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - Shared title
+
+private struct StepTitle: View {
+    let plain: String
+    let accent: String
+    var subtitle: String? = nil
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            (Text(plain).font(.system(size: 28, weight: .bold))
+                + Text(accent).font(OnboardingTheme.serifAccent(29)))
+                .foregroundStyle(OnboardingTheme.heading)
+            if let subtitle {
+                Text(subtitle)
+                    .font(.system(size: 12.5))
+                    .foregroundStyle(OnboardingTheme.body)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }

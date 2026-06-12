@@ -1,67 +1,47 @@
 import Foundation
 
-/// Decides *when* to spend an evaluation on a klip's window.
+/// Per-klip check schedule: starts at `baseInterval` seconds, multiplies by
+/// `backoffFactor` after each check where content is unchanged, and resets to
+/// `baseInterval` when content changes. Caps at `maxInterval`.
 ///
-/// Strategy: "change-then-settle". We feed it a cheap content hash of the
-/// window on every tick. While the content keeps changing the task is busy, so
-/// we wait. When the content stops changing for `settleInterval`, that
-/// busy→quiet transition is exactly when a task tends to finish or start
-/// waiting for input — so we evaluate. A long `fallbackInterval` guarantees we
-/// still evaluate periodically for windows that never clearly settle.
-///
-/// One instance tracks one klip. Pure and deterministic: drive it with
-/// `(hash, now)` pairs in tests.
-public final class ChangeDetector {
-    public let settleInterval: TimeInterval
-    public let fallbackInterval: TimeInterval
+/// `isDue` returns `true` immediately on the first call so a freshly-dropped klip
+/// gets its first classification without waiting. Pure and deterministic — drive
+/// it with synthetic timestamps in tests.
+public final class BackoffScheduler {
+    public let baseInterval: TimeInterval
+    public let backoffFactor: Double
+    public let maxInterval: TimeInterval
 
-    private var lastHash: Int?
-    private var lastChangeTime: Date = .distantPast
-    private var lastEvaluateTime: Date = .distantPast
-    /// True when content has changed since the last evaluation — i.e. there is
-    /// something new worth settling on.
-    private var dirty: Bool = false
+    /// Current next-check interval. Readable for testing / display.
+    public private(set) var currentInterval: TimeInterval
+    private var nextCheckTime: Date = .distantPast
 
-    public init(settleInterval: TimeInterval = 6, fallbackInterval: TimeInterval = 180) {
-        self.settleInterval = settleInterval
-        self.fallbackInterval = fallbackInterval
+    public init(
+        baseInterval: TimeInterval = 20,
+        backoffFactor: Double = 1.5,
+        maxInterval: TimeInterval = 300
+    ) {
+        self.baseInterval = baseInterval
+        self.backoffFactor = backoffFactor
+        self.maxInterval = maxInterval
+        self.currentInterval = baseInterval
     }
 
-    /// Feed one observation. Returns `true` when the caller should evaluate the
-    /// window's state now (run the prefilter/classifier).
-    public func observe(hash: Int, now: Date) -> Bool {
-        guard let last = lastHash else {
-            // First observation: prime state and schedule an initial settle.
-            lastHash = hash
-            lastChangeTime = now
-            lastEvaluateTime = now
-            dirty = true
-            return false
-        }
+    /// Whether this klip is due for a check right now.
+    public func isDue(now: Date = Date()) -> Bool {
+        now >= nextCheckTime
+    }
 
-        let changed = hash != last
-        if changed {
-            lastHash = hash
-            lastChangeTime = now
-            dirty = true
+    /// Call after each completed check.
+    /// - Parameter contentChanged: true if the window's content hash differed
+    ///   from the previous check — resets interval to base so changes are
+    ///   watched closely.
+    public func advance(contentChanged: Bool, now: Date = Date()) {
+        if contentChanged {
+            currentInterval = baseInterval
+        } else {
+            currentInterval = min(currentInterval * backoffFactor, maxInterval)
         }
-
-        // Settle: content was dirty and has now been quiet long enough. Only
-        // possible when this tick did NOT change (otherwise it's still busy).
-        if !changed && dirty && now.timeIntervalSince(lastChangeTime) >= settleInterval {
-            dirty = false
-            lastEvaluateTime = now
-            return true
-        }
-
-        // Fallback safety net — checked on every tick, including ones where the
-        // content changed, so windows that never go quiet (spinners, live logs)
-        // still get evaluated periodically.
-        if now.timeIntervalSince(lastEvaluateTime) >= fallbackInterval {
-            lastEvaluateTime = now
-            return true
-        }
-
-        return false
+        nextCheckTime = now.addingTimeInterval(currentInterval)
     }
 }

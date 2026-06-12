@@ -53,6 +53,37 @@ public final class KlipStore: ObservableObject {
         save()
     }
 
+    /// Update only the label (e.g. an async AI-suggested name), leaving
+    /// status and history untouched.
+    public func updateLabel(id: Klip.ID, label: String) {
+        guard let i = index(of: id), !label.isEmpty else { return }
+        klips[i].label = label
+        save()
+    }
+
+    /// Re-bind a klip's content URL (e.g. attach a Codex CLI session that
+    /// started inside an already-klipped terminal). nil clears the binding.
+    public func setContentURL(id: Klip.ID, url: String?) {
+        guard let i = index(of: id) else { return }
+        klips[i].target.contentURL = url
+        save()
+    }
+
+    /// Apply a new status and, optionally, an AI-generated label to a klip.
+    public func updateStatusAndLabel(
+        id: Klip.ID,
+        to status: KlipStatus,
+        label: String?,
+        reason: String,
+        at date: Date = Date()
+    ) {
+        guard let i = index(of: id) else { return }
+        if let label, !label.isEmpty {
+            klips[i].label = label
+        }
+        updateStatus(id: id, to: status, reason: reason, at: date)
+    }
+
     /// Apply a new status to a klip, recording it in history and updating
     /// `lastChecked`. A no-op transition (same status) only refreshes
     /// `lastChecked` and does not append history.
@@ -68,6 +99,23 @@ public final class KlipStore: ObservableObject {
             klips[i].status = status
             klips[i].history.append(
                 StatusEvent(status: status, reason: reason, at: date)
+            )
+            if klips[i].history.count > historyLimit {
+                klips[i].history.removeFirst(klips[i].history.count - historyLimit)
+            }
+        }
+        save()
+    }
+
+    /// Record a new reason without changing status (e.g. "in a background
+    /// tab"). Appends to history only when the reason actually changed, so
+    /// periodic re-checks don't flood it.
+    public func noteReason(id: Klip.ID, reason: String, at date: Date = Date()) {
+        guard let i = index(of: id) else { return }
+        klips[i].lastChecked = date
+        if klips[i].history.last?.reason != reason {
+            klips[i].history.append(
+                StatusEvent(status: klips[i].status, reason: reason, at: date)
             )
             if klips[i].history.count > historyLimit {
                 klips[i].history.removeFirst(klips[i].history.count - historyLimit)

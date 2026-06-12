@@ -1,7 +1,6 @@
 import AppKit
 import ApplicationServices
 import ScreenCaptureKit
-import Vision
 import CoreImage
 
 /// A point-in-time read of a window: its accessibility text and (optionally) a
@@ -36,7 +35,15 @@ enum CaptureService {
         wantsScreenshot: Bool,
         allowScreenshot: Bool = true
     ) async -> Snapshot {
-        let text = axWindow.map { axText(of: $0) } ?? ""
+        var text = axWindow.map { axText(of: $0) } ?? ""
+
+        // Electron apps expose an empty AX tree until AXManualAccessibility is
+        // set on them. If the first walk found (almost) nothing, opt in and
+        // retry once — this is what makes Claude Desktop, Slack, etc. readable.
+        if text.count < 40 {
+            AX.enableManualAccessibility(pid: pid)
+            if let axWindow { text = axText(of: axWindow) }
+        }
 
         var png: Data?
         // Only ever touch ScreenCaptureKit when screenshots are allowed AND the
@@ -46,12 +53,7 @@ enum CaptureService {
             png = try? await screenshot(windowID: windowID)
         }
 
-        // If text is too thin to judge, OCR the screenshot as a backstop.
-        var finalText = text
-        if finalText.count < 40, let png, let ocr = await ocrText(png: png) {
-            finalText = ocr
-        }
-        return Snapshot(axText: String(finalText.prefix(maxTextLength)), screenshotPNG: png)
+        return Snapshot(axText: String(text.prefix(maxTextLength)), screenshotPNG: png)
     }
 
     // MARK: - Accessibility text
@@ -116,24 +118,5 @@ enum CaptureService {
     private static func pngData(from cgImage: CGImage) -> Data? {
         let rep = NSBitmapImageRep(cgImage: cgImage)
         return rep.representation(using: .png, properties: [:])
-    }
-
-    // MARK: - Vision OCR fallback
-
-    static func ocrText(png: Data) async -> String? {
-        guard let ciImage = CIImage(data: png) else { return nil }
-        let context = CIContext()
-        guard let cgImage = context.createCGImage(ciImage, from: ciImage.extent) else { return nil }
-
-        return await withCheckedContinuation { continuation in
-            let request = VNRecognizeTextRequest { request, _ in
-                let lines = (request.results as? [VNRecognizedTextObservation] ?? [])
-                    .compactMap { $0.topCandidates(1).first?.string }
-                continuation.resume(returning: lines.isEmpty ? nil : lines.joined(separator: "\n"))
-            }
-            request.recognitionLevel = .fast
-            let handler = VNImageRequestHandler(cgImage: cgImage, options: [:])
-            try? handler.perform([request])
-        }
     }
 }

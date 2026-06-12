@@ -10,12 +10,17 @@ let package = Package(
             name: "KlipCore"
         ),
         // The macOS menu-bar agent: UI + OS integration (AppKit, SwiftUI,
-        // ScreenCaptureKit, Vision, Accessibility, AppleScript).
+        // ScreenCaptureKit, Accessibility, AppleScript).
         // Uses the Swift 5 language mode: the AppKit/Carbon/AX integration is
         // inherently main-thread, callback-heavy, and full of non-Sendable OS
         // types, so strict Swift 6 concurrency adds churn without safety here.
         .executableTarget(
             name: "KlipApp",
+            dependencies: ["KlipCore"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        .executableTarget(
+            name: "KlipChromeNativeHost",
             dependencies: ["KlipCore"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),

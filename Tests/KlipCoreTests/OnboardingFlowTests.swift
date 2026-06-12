@@ -4,7 +4,7 @@ import XCTest
 final class OnboardingFlowTests: XCTestCase {
     func testStepOrderMatchesTheJourney() {
         XCTAssertEqual(OnboardingStep.allCases, [
-            .welcome, .story, .accessibility, .terminal, .claude, .codex, .chrome, .finish,
+            .welcome, .accessibility, .integrations, .finish,
         ])
     }
 

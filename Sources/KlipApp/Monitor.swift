@@ -1,18 +1,21 @@
 import AppKit
 import KlipCore
 
-/// Background pipeline: on a timer, cheaply probes each klipped window, and when
-/// the change detector signals a busy→quiet transition (or the fallback fires),
-/// runs the on-device prefilter and, if warranted, the Claude classifier — then
-/// writes the resulting status back to the store.
+/// Background pipeline: polls every 5 s to see which klips are due (per-klip
+/// exponential backoff starting at 20 s), then takes a full snapshot and calls
+/// Claude to classify + label the window.
 @MainActor
 final class KlipMonitor: ObservableObject {
     private let store: KlipStore
     private let settings: Settings
     private var timer: Timer?
-    private var detectors: [UUID: ChangeDetector] = [:]
+    private var schedulers: [UUID: BackoffScheduler] = [:]
+    private var lastHashes: [UUID: Int] = [:]
     private var inFlight: Set<UUID> = []
-    private let prefilter = Prefilter()
+
+    /// Klips driven by an event source (Claude Code hooks) — ground truth that
+    /// makes AI polling unnecessary and potentially conflicting.
+    var isExternallyManaged: ((Klip) -> Bool)?
 
     init(store: KlipStore, settings: Settings) {
         self.store = store
@@ -21,8 +24,7 @@ final class KlipMonitor: ObservableObject {
 
     func start() {
         stop()
-        let interval = max(2, settings.pollInterval)
-        let t = Timer.scheduledTimer(withTimeInterval: interval, repeats: true) { [weak self] _ in
+        let t = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
             Task { @MainActor in self?.tick() }
         }
         RunLoop.main.add(t, forMode: .common)
@@ -35,34 +37,38 @@ final class KlipMonitor: ObservableObject {
         timer = nil
     }
 
-    /// Discard cached detectors so new interval settings take effect.
-    func resetDetectors() { detectors.removeAll() }
+    func resetSchedulers() {
+        schedulers.removeAll()
+        lastHashes.removeAll()
+    }
+
+    private func scheduler(for id: UUID) -> BackoffScheduler {
+        if let s = schedulers[id] { return s }
+        let s = BackoffScheduler()
+        schedulers[id] = s
+        return s
+    }
 
     private func tick() {
         let liveIDs = Set(store.klips.map(\.id))
-        detectors = detectors.filter { liveIDs.contains($0.key) }
+        schedulers = schedulers.filter { liveIDs.contains($0.key) }
+        lastHashes = lastHashes.filter { liveIDs.contains($0.key) }
 
+        let now = Date()
         for klip in store.klips where klip.status != .stale {
-            evaluate(klip)
+            // Shell-integration klips are updated by shell hook events — skip AI polling.
+            if case .shell = klip.target.locator { continue }
+            // Same for klips with a live Claude hook stream.
+            if isExternallyManaged?(klip) == true { continue }
+            let sched = scheduler(for: klip.id)
+            guard sched.isDue(now: now), !inFlight.contains(klip.id) else { continue }
+            classify(klip)
         }
     }
 
-    private func detector(for id: UUID) -> ChangeDetector {
-        if let d = detectors[id] { return d }
-        let d = ChangeDetector(
-            settleInterval: settings.settleInterval,
-            fallbackInterval: settings.fallbackInterval
-        )
-        detectors[id] = d
-        return d
-    }
-
-    private func evaluate(_ klip: Klip) {
-        guard !inFlight.contains(klip.id) else { return }
+    private func classify(_ klip: Klip) {
         let id = klip.id
         let target = klip.target
-        let detector = detector(for: id)
-        let model = settings.model
         let apiKey = settings.apiKey()
         let allowScreenshots = settings.useScreenshots
 
@@ -70,54 +76,87 @@ final class KlipMonitor: ObservableObject {
         Task { @MainActor in
             defer { inFlight.remove(id) }
 
-            // Window/app gone?
             guard NSRunningApplication(processIdentifier: target.pid) != nil else {
                 store.updateStatus(id: id, to: .stale, reason: "app closed")
                 return
             }
+
             let axWindow = WindowFinder.axWindow(pid: target.pid, windowID: target.windowID)
-
-            // Cheap text-first probe to drive change detection.
-            let probe = await CaptureService.snapshot(
-                pid: target.pid, windowID: target.windowID,
-                axWindow: axWindow, wantsScreenshot: false,
-                allowScreenshot: allowScreenshots
-            )
-            guard detector.observe(hash: probe.contentHash, now: Date()) else { return }
-
-            // Evaluate the settled state.
-            let pre = prefilter.assess(text: probe.axText)
-
-            // If nothing on-device looks noteworthy, treat it as still-working
-            // and don't spend a Claude call.
-            guard pre.isInteresting else {
-                store.updateStatus(id: id, to: .working, reason: "active")
-                return
-            }
-
-            // Worth a confident verdict: grab a screenshot for vision context.
-            let full = await CaptureService.snapshot(
+            let snapshot = await CaptureService.snapshot(
                 pid: target.pid, windowID: target.windowID,
                 axWindow: axWindow, wantsScreenshot: true,
                 allowScreenshot: allowScreenshots
             )
+
+            let contentChanged = lastHashes[id].map { $0 != snapshot.contentHash } ?? false
+            lastHashes[id] = snapshot.contentHash
+            schedulers[id]?.advance(contentChanged: contentChanged, now: Date())
+
+            // Apps with internal tabs share one window across many tasks. If
+            // this klip's in-app tab isn't the one showing right now, the
+            // window contains some OTHER task — classifying it would write
+            // that task's status onto this klip. Hold position instead.
+            if case .generic = target.locator, let axWindow {
+                // Exact signal: Electron SPAs put their route on the AX web
+                // area, and it changes per internal tab (Claude Desktop,
+                // Codex, …).
+                if let klipURL = target.contentURL,
+                   let currentURL = AX.webContentURL(of: axWindow),
+                   !ContentURL.matches(currentURL, klipURL) {
+                    store.noteReason(id: id, reason: "In a background tab — click to switch back")
+                    return
+                }
+                // Fallback signal: apps that mark the selected tab/row in AX.
+                if target.contentURL == nil, let anchor = target.contextAnchor {
+                    let selected = RestoreAnchorCollector.selectedLabels(from: axWindow)
+                    if !selected.isEmpty,
+                       !selected.contains(where: { RestoreMatcher.labelsMatch($0, anchor) }) {
+                        store.noteReason(id: id, reason: "In a background tab — click to switch back")
+                        return
+                    }
+                }
+            }
+
+            guard let key = apiKey, !key.isEmpty else {
+                store.updateStatus(id: id, to: .unknown, reason: "No API key")
+                return
+            }
+
+            // Nothing readable at all — a Claude call would only echo "empty
+            // window" back. Say what would actually fix it instead.
+            if snapshot.axText.count < 30, snapshot.screenshotPNG == nil {
+                let reason: String
+                if !allowScreenshots {
+                    reason = "Can't read this window — enable screenshots in Settings"
+                } else if !CGPreflightScreenCaptureAccess() {
+                    reason = "Can't read this window — grant Screen Recording"
+                } else {
+                    reason = "Window not readable yet — retrying"
+                }
+                store.updateStatus(id: id, to: .unknown, reason: reason)
+                return
+            }
+
             let input = ClassificationInput(
                 appName: target.appName,
                 windowTitle: target.windowTitle,
-                axText: full.axText,
-                screenshotPNG: full.screenshotPNG
+                axText: snapshot.axText,
+                screenshotPNG: snapshot.screenshotPNG
             )
-
-            // No key or a failure: fall back to the on-device heuristic.
-            guard apiKey?.isEmpty == false else {
-                store.updateStatus(id: id, to: pre.hint, reason: "on-device: \(pre.hint.rawValue)")
-                return
-            }
             do {
-                let verdict = try await ClaudeClassifier(apiKey: apiKey, model: model).classify(input)
-                store.updateStatus(id: id, to: verdict.status, reason: verdict.reason)
+                let verdict = try await ClaudeClassifier(
+                    apiKey: key, model: ClassifierProtocolBuilder.defaultModel
+                ).classify(input)
+                // An event source may have claimed this klip while the API
+                // call was in flight — its truth beats our guess.
+                guard let current = store.klip(id: id),
+                      isExternallyManaged?(current) != true
+                else { return }
+                store.updateStatusAndLabel(
+                    id: id, to: verdict.status, label: verdict.label, reason: verdict.reason
+                )
             } catch {
-                store.updateStatus(id: id, to: pre.hint, reason: "AI unavailable; on-device guess")
+                store.updateStatus(id: id, to: .unknown, reason: "AI error: \(error)")
             }
         }
     }
