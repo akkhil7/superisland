@@ -182,6 +182,34 @@ struct OnboardingChip: View {
     }
 }
 
+/// Custom switch: brand purple when on, regardless of window key state.
+/// (NSSwitch ignores SwiftUI .tint and desaturates in inactive windows.)
+struct PurpleSwitchToggleStyle: ToggleStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        Button {
+            configuration.isOn.toggle()
+        } label: {
+            Capsule()
+                .fill(configuration.isOn
+                      ? AnyShapeStyle(LinearGradient(
+                          colors: [OnboardingTheme.purple, OnboardingTheme.purpleLight],
+                          startPoint: .leading, endPoint: .trailing))
+                      : AnyShapeStyle(Color.white.opacity(0.14)))
+                .frame(width: 40, height: 23)
+                .overlay(alignment: configuration.isOn ? .trailing : .leading) {
+                    Circle()
+                        .fill(.white)
+                        .frame(width: 19, height: 19)
+                        .padding(2)
+                        .shadow(color: .black.opacity(0.35), radius: 2, y: 1)
+                }
+                .shadow(color: configuration.isOn ? OnboardingTheme.glow : .clear, radius: 7)
+                .animation(.spring(response: 0.25, dampingFraction: 0.9), value: configuration.isOn)
+        }
+        .buttonStyle(.plain)
+    }
+}
+
 struct Keycap: View {
     let symbol: String
 

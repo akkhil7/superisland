@@ -209,16 +209,12 @@ private struct IntegrationsStepView: View {
                     }
                 }
 
-                // Codex — automatic, nothing to toggle
+                // Codex — automatic, nothing to toggle or report
                 IntegrationRow(
                     icon: "chevron.left.forwardslash.chevron.right", name: "Codex",
                     caption: "session journals · nothing to set up"
                 ) {
-                    OnboardingChip(
-                        text: codexIntegration.knownThreadCount > 0
-                            ? "\(codexIntegration.knownThreadCount) threads" : "ready",
-                        color: .green
-                    )
+                    EmptyView()
                 }
 
                 // Chrome
@@ -226,17 +222,9 @@ private struct IntegrationsStepView: View {
                     icon: "globe", name: "Chrome",
                     caption: chromeCaption
                 ) {
-                    HStack(spacing: 8) {
-                        if chromeIntegration.isExtensionLoaded {
-                            OnboardingChip(
-                                text: chromeIntegration.isBridgeConnected ? "connected" : "loaded",
-                                color: .green
-                            )
-                        }
-                        installToggle(isOn: chromeIntegration.isNativeHostInstalled) { on in
-                            if on { try chromeIntegration.setUp() }
-                            else { chromeIntegration.uninstallNativeHost() }
-                        }
+                    installToggle(isOn: chromeIntegration.isNativeHostInstalled) { on in
+                        if on { try chromeIntegration.setUp() }
+                        else { chromeIntegration.uninstallNativeHost() }
                     }
                 }
             }
@@ -274,9 +262,7 @@ private struct IntegrationsStepView: View {
             }
         ))
         .labelsHidden()
-        .toggleStyle(.switch)
-        .controlSize(.small)
-        .tint(OnboardingTheme.purple)
+        .toggleStyle(PurpleSwitchToggleStyle())
     }
 }
 
