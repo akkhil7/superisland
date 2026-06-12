@@ -21,22 +21,24 @@ struct OnboardingView: View {
     private var step: OnboardingStep { steps[index] }
 
     var body: some View {
-        ZStack {
-            OnboardingBackground()
-            VStack(spacing: 0) {
-                content
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
-                    .padding(.horizontal, 52)
-                    .padding(.top, 30)
-                    .clipped()   // content may never push the nav rail out
-                    .id(index)
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .offset(x: 28)),
-                        removal: .opacity.combined(with: .offset(x: -28))
-                    ))
-                navigation
-            }
+        VStack(spacing: 0) {
+            content
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+                .padding(.horizontal, 52)
+                .padding(.top, 30)
+                .clipped()   // content may never push the nav rail out
+                .id(index)
+                .transition(.asymmetric(
+                    insertion: .opacity.combined(with: .offset(x: 28)),
+                    removal: .opacity.combined(with: .offset(x: -28))
+                ))
+            navigation
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        // As a `.background` the aurora can never drive layout — as a ZStack
+        // sibling its scaledToFill width (image aspect × 560) became the
+        // stack's layout width and pushed the UI past the window edges.
+        .background(OnboardingBackground())
         .onAppear { permissions.refresh() }
     }
 

@@ -78,6 +78,7 @@ struct OnboardingBackground: View {
             }
             Starfield()
         }
+        .clipped()   // scaledToFill overflow stays inside the window bounds
         .ignoresSafeArea()
     }
 }
