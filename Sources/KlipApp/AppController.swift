@@ -79,7 +79,8 @@ final class AppController: ObservableObject {
             if self.hookManagedKlips.contains(klip.id) { return true }
             // Codex klips are rollout-driven; AI polling would read whatever
             // thread happens to be visible onto them.
-            return klip.target.contentURL?.hasPrefix(CodexIntegration.sessionURLPrefix) == true
+            return self.settings.codexIntegrationEnabled
+                && klip.target.contentURL?.hasPrefix(CodexIntegration.sessionURLPrefix) == true
         }
         startCodexWatcher()
     }
@@ -123,6 +124,7 @@ final class AppController: ObservableObject {
     }
 
     private func pollCodexKlips() {
+        guard settings.codexIntegrationEnabled else { return }
         // One mtime-gated read per session per tick, applied to EVERY klip on
         // that session (duplicates would otherwise race for the single update).
         var updates: [String: ClaudeHookMapper.Update] = [:]
@@ -378,6 +380,7 @@ final class AppController: ObservableObject {
         // the session whose rollout journal was written most recently (i.e.
         // the thread the user just prompted).
         if front.bundleID == CodexIntegration.bundleID,
+           settings.codexIntegrationEnabled,
            let session = codexIntegration.currentSessionGuess() {
             contentURL = CodexIntegration.sessionURLPrefix + session.id
             threadLabel = session.title

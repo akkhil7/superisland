@@ -172,6 +172,7 @@ private struct AccessibilityStepView: View {
 // MARK: - 3 · Integrations (all on one screen)
 
 private struct IntegrationsStepView: View {
+    @EnvironmentObject var settings: Settings
     @EnvironmentObject var shellIntegration: ShellIntegration
     @EnvironmentObject var claudeIntegration: ClaudeIntegration
     @EnvironmentObject var chromeIntegration: ChromeIntegration
@@ -209,12 +210,14 @@ private struct IntegrationsStepView: View {
                     }
                 }
 
-                // Codex — automatic, nothing to toggle or report
+                // Codex — no install; the switch gates journal reading.
                 IntegrationRow(
                     icon: "chevron.left.forwardslash.chevron.right", name: "Codex",
-                    caption: "session journals · nothing to set up"
+                    caption: "session journals · automatic"
                 ) {
-                    EmptyView()
+                    Toggle("", isOn: $settings.codexIntegrationEnabled)
+                        .labelsHidden()
+                        .toggleStyle(PurpleSwitchToggleStyle())
                 }
 
                 // Chrome

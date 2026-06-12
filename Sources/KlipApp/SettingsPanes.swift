@@ -222,10 +222,12 @@ struct IntegrationsSettingsPane: View {
         IntegrationCard(
             icon: "chevron.left.forwardslash.chevron.right", color: .teal,
             title: "Codex",
-            status: ("Active", .green)
+            status: settings.codexIntegrationEnabled ? ("Active", .green) : ("Off", .gray)
         ) {
-            Text("Built in — no setup. Klip reads Codex's session journals directly: working, finished (with Codex's last message), or waiting for approval, even in background tabs. Clicking a klip jumps to the exact thread.")
+            Text("No setup. Klip reads Codex's session journals directly: working, finished (with Codex's last message), or waiting for approval, even in background tabs. Clicking a klip jumps to the exact thread.")
                 .settingsCaption()
+            Toggle("Read Codex session journals", isOn: $settings.codexIntegrationEnabled)
+                .controlSize(.small)
             Text("Prompt a thread first, then drop the klip — the freshest journal tells Klip which thread it is.")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)

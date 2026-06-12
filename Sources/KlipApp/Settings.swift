@@ -25,6 +25,12 @@ final class Settings: ObservableObject {
         didSet { defaults.set(islandExpandOnHover, forKey: Keys.islandExpandOnHover) }
     }
 
+    /// Allow Klip to read Codex's session journals (rollout files) for live
+    /// thread status. No install involved — this is the on/off switch.
+    @Published var codexIntegrationEnabled: Bool {
+        didSet { defaults.set(codexIntegrationEnabled, forKey: Keys.codexIntegrationEnabled) }
+    }
+
     /// Register Klip as a Login Item.
     @Published var launchAtLogin: Bool {
         didSet {
@@ -57,6 +63,7 @@ final class Settings: ObservableObject {
         static let useScreenshots  = "useScreenshots"
         static let rememberVisualState = "rememberVisualState"
         static let islandExpandOnHover = "islandExpandOnHover"
+        static let codexIntegrationEnabled = "codexIntegrationEnabled"
         static let launchAtLogin   = "launchAtLogin"
         static let autoDismiss     = "autoDismissMinutes"
         static let hotkeyKeyCode   = "hotkeyKeyCode"
@@ -70,6 +77,7 @@ final class Settings: ObservableObject {
         useScreenshots    = defaults.object(forKey: Keys.useScreenshots) as? Bool ?? false
         rememberVisualState = defaults.object(forKey: Keys.rememberVisualState) as? Bool ?? false
         islandExpandOnHover = defaults.object(forKey: Keys.islandExpandOnHover) as? Bool ?? true
+        codexIntegrationEnabled = defaults.object(forKey: Keys.codexIntegrationEnabled) as? Bool ?? true
         launchAtLogin     = SMAppService.mainApp.status == .enabled
         autoDismissMinutes = defaults.object(forKey: Keys.autoDismiss) as? Int ?? 0
         let storedKeyCode = defaults.object(forKey: Keys.hotkeyKeyCode) as? Int ?? Self.defaultKeyCode
