@@ -361,6 +361,7 @@ struct MenuBarContent: View {
             Divider()
             HStack {
                 OpenSettingsButton()
+                Button("Welcome Tour…") { controller.showOnboarding() }
                 Spacer()
                 Button("Quit") { NSApplication.shared.terminate(nil) }
             }
