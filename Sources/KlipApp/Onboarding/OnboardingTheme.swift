@@ -182,6 +182,48 @@ struct OnboardingChip: View {
     }
 }
 
+// MARK: - Logo
+
+/// The brand mark from `website/assets/favicon.svg`, redrawn natively:
+/// purple rounded square + white clip stroke. Vector-sharp at any size.
+struct KlipLogo: View {
+    var size: CGFloat = 110
+
+    var body: some View {
+        ZStack {
+            RoundedRectangle(cornerRadius: size * 8 / 32, style: .continuous)
+                .fill(LinearGradient(
+                    colors: [OnboardingTheme.purple, OnboardingTheme.purpleLight],
+                    startPoint: .top, endPoint: .bottom
+                ))
+            ClipStroke()
+                .stroke(.white, style: StrokeStyle(
+                    lineWidth: size * 2.6 / 32, lineCap: .round
+                ))
+        }
+        .frame(width: size, height: size)
+        .shadow(color: OnboardingTheme.glow, radius: 26, y: 4)
+    }
+
+    /// The paperclip path from the SVG (viewBox 0 0 32 32):
+    /// M10 8 v11 a6 6 0 0 0 12 0 V9.5 a3.5 3.5 0 0 0 -7 0 V19
+    private struct ClipStroke: Shape {
+        func path(in rect: CGRect) -> Path {
+            let s = rect.width / 32
+            var p = Path()
+            p.move(to: CGPoint(x: 10 * s, y: 8 * s))
+            p.addLine(to: CGPoint(x: 10 * s, y: 19 * s))
+            p.addArc(center: CGPoint(x: 16 * s, y: 19 * s), radius: 6 * s,
+                     startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
+            p.addLine(to: CGPoint(x: 22 * s, y: 9.5 * s))
+            p.addArc(center: CGPoint(x: 18.5 * s, y: 9.5 * s), radius: 3.5 * s,
+                     startAngle: .degrees(0), endAngle: .degrees(180), clockwise: true)
+            p.addLine(to: CGPoint(x: 15 * s, y: 19 * s))
+            return p
+        }
+    }
+}
+
 /// Custom switch: brand purple when on, regardless of window key state.
 /// (NSSwitch ignores SwiftUI .tint and desaturates in inactive windows.)
 struct PurpleSwitchToggleStyle: ToggleStyle {

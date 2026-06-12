@@ -98,14 +98,8 @@ struct OnboardingView: View {
 
 private struct WelcomeStepView: View {
     var body: some View {
-        VStack(spacing: 20) {
-            if let mascot = OnboardingTheme.art("mascot.webp") {
-                Image(nsImage: mascot)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(height: 160)
-                    .shadow(color: OnboardingTheme.glow, radius: 30)
-            }
+        VStack(spacing: 26) {
+            KlipLogo(size: 104)
             (Text("Never babysit a ").font(.system(size: 36, weight: .bold))
                 + Text("window").font(OnboardingTheme.serifAccent(38))
                 + Text(" again").font(.system(size: 36, weight: .bold)))

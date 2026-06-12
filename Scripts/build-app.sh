@@ -31,7 +31,7 @@ fi
 
 # Onboarding art + brand fonts (fall back gracefully when absent).
 mkdir -p "$RES/Onboarding"
-for f in "$ROOT/website/assets/mascot.webp" "$ROOT/website/assets/hero-aurora.webp" \
+for f in "$ROOT/website/assets/hero-aurora.webp" \
          "$ROOT/Resources/Fonts/InstrumentSerif-Regular.ttf" \
          "$ROOT/Resources/Fonts/InstrumentSerif-Italic.ttf"; do
     [ -f "$f" ] && cp "$f" "$RES/Onboarding/" || true
