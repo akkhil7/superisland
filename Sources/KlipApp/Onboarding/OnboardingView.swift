@@ -193,6 +193,7 @@ private struct IntegrationsStepView: View {
                     icon: "terminal.fill", name: "Terminal",
                     caption: "zsh & bash · instant exit-code status"
                 ) {
+                    statusChip(active: shellIntegration.isInstalled)
                     installToggle(isOn: shellIntegration.isInstalled) { on in
                         if on { try shellIntegration.install() }
                         else { shellIntegration.uninstall() }
@@ -204,6 +205,7 @@ private struct IntegrationsStepView: View {
                     icon: "sparkle", name: "Claude Desktop",
                     caption: "session hooks · live even in background tabs"
                 ) {
+                    statusChip(active: claudeIntegration.isInstalled)
                     installToggle(isOn: claudeIntegration.isInstalled) { on in
                         if on { try claudeIntegration.install() }
                         else { claudeIntegration.uninstall() }
@@ -215,16 +217,19 @@ private struct IntegrationsStepView: View {
                     icon: "chevron.left.forwardslash.chevron.right", name: "Codex",
                     caption: "session journals · automatic"
                 ) {
+                    statusChip(active: settings.codexIntegrationEnabled)
                     Toggle("", isOn: $settings.codexIntegrationEnabled)
                         .labelsHidden()
                         .toggleStyle(PurpleSwitchToggleStyle())
                 }
 
-                // Chrome
+                // Chrome — active only once the extension is actually loaded.
                 IntegrationRow(
                     icon: "globe", name: "Chrome",
                     caption: chromeCaption
                 ) {
+                    statusChip(active: chromeIntegration.isNativeHostInstalled
+                               && chromeIntegration.isExtensionLoaded)
                     installToggle(isOn: chromeIntegration.isNativeHostInstalled) { on in
                         if on { try chromeIntegration.setUp() }
                         else { chromeIntegration.uninstallNativeHost() }
@@ -250,6 +255,13 @@ private struct IntegrationsStepView: View {
             return "drag the revealed folder onto chrome://extensions"
         }
         return "exact tabs · background included"
+    }
+
+    private func statusChip(active: Bool) -> some View {
+        OnboardingChip(
+            text: active ? "active" : "inactive",
+            color: active ? .green : .gray
+        )
     }
 
     /// Purple switch that runs install/uninstall side effects. State comes
