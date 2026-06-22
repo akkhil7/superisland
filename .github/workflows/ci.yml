@@ -34,11 +34,12 @@ jobs:
 
       - name: SwiftLint
         run: |
-          brew install swiftlint
-          swiftlint lint --strict --quiet
+          curl -sL https://github.com/realm/SwiftLint/releases/download/0.64.0/portable_swiftlint.zip -o /tmp/swiftlint.zip
+          unzip -q -o /tmp/swiftlint.zip -d /tmp/swiftlint
+          /tmp/swiftlint/swiftlint lint --strict --quiet
 
       - name: Format check
-        run: swift format lint --strict --recursive Sources Tests
+        run: swift format lint --strict --configuration .swift-format --recursive Sources Tests
 
       - name: Signing dry-run (ad-hoc, no secrets)
         run: |

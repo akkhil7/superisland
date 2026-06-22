@@ -6,15 +6,11 @@ excluded:
 disabled_rules:
   - todo
   - line_length
-  # identifier_name: codebase uses many idiomatic short names (i, s, t, ok, bg, rc, etc.)
-  # that are conventional in Swift/SwiftUI; renaming them all would be noisy churn.
-  - identifier_name
+  # force_cast: used as assertion style in tests + a few production sites (Adapters) with statically-known types; disabled globally as no per-path scoping exists for this rule without per-line directives. Production uses must be audited before re-enabling.
+  - force_cast
   # cyclomatic_complexity: two functions (DropSource.init, SupportedApps.bundleID) have
   # complexity 11 vs. the default threshold of 10; small overage, not worth refactoring now.
   - cyclomatic_complexity
-  # force_cast: used in test files (ClassifierTests) where forced casts are intentional
-  # test assertions; and in a few production spots (Adapters) with well-understood types.
-  - force_cast
   # file_length: several large source files (Onboarding views, SettingsPanes) exceed 400
   # lines; splitting them is a separate refactor task.
   - file_length
@@ -42,4 +38,8 @@ disabled_rules:
   # opening_brace: swift-format reformats multi-line closures onto a new line in some
   # contexts (e.g. @Sendable closures) that swiftlint flags as violations; format wins.
   - opening_brace
+identifier_name:
+  min_length:
+    warning: 2
+  excluded: [i, s, t, x, y, r, n, id, ok, bg, rc, fm, to, dx, dy, up, a, b, c, d, e, f, g, h, k, l, m, p, v, w]
 analyzer_rules: []
