@@ -13,6 +13,7 @@ struct SuperIslandApp: App {
                 .environmentObject(appDelegate.controller.store)
                 .environmentObject(appDelegate.controller.permissions)
                 .environmentObject(appDelegate.controller.settings)
+                .environmentObject(appDelegate.updater)
         } label: {
             if let mark = Brand.menuBarImage {
                 Image(nsImage: mark)
@@ -38,6 +39,7 @@ struct SuperIslandApp: App {
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate {
     let controller = AppController()
+    let updater = SoftwareUpdater()
     private var island: NotchIslandController?
     private var bannerHost: AlertBannerHostController?
     private let hotkey = HotkeyManager()

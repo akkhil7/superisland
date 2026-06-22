@@ -27,6 +27,16 @@
     <key>LSUIElement</key>
     <true/>
 
+    <!-- Sparkle auto-update: PLACEHOLDER values — fill in during Task 0 setup.
+         SUPublicEDKey: run `generate_keys` from the Sparkle distribution and paste the public key.
+         SUFeedURL: replace OWNER/REPO with the actual GitHub repository. -->
+    <key>SUFeedURL</key>
+    <string>https://OWNER.github.io/REPO/appcast.xml</string>
+    <key>SUPublicEDKey</key>
+    <string>REPLACE_WITH_SPARKLE_PUBLIC_ED_KEY</string>
+    <key>SUEnableAutomaticChecks</key>
+    <true/>
+
     <!-- AppleScript automation (Chrome/Terminal adapters). -->
     <key>NSAppleEventsUsageDescription</key>
     <string>SuperIsland controls Chrome and Terminal to take you back to the exact tab or window you saved.</string>

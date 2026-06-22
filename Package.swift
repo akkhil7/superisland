@@ -4,6 +4,9 @@ import PackageDescription
 let package = Package(
     name: "SuperIsland",
     platforms: [.macOS(.v14)],
+    dependencies: [
+        .package(url: "https://github.com/sparkle-project/Sparkle", from: "2.6.0"),
+    ],
     targets: [
         // Pure, testable logic. No SwiftUI/AppKit imports so tests stay fast and clean.
         .target(
@@ -16,7 +19,10 @@ let package = Package(
         // types, so strict Swift 6 concurrency adds churn without safety here.
         .executableTarget(
             name: "SuperIslandApp",
-            dependencies: ["SuperIslandCore"],
+            dependencies: [
+                "SuperIslandCore",
+                .product(name: "Sparkle", package: "Sparkle"),
+            ],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(

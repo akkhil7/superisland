@@ -587,6 +587,7 @@ struct MenuBarContent: View {
     @EnvironmentObject var store: DropStore
     @EnvironmentObject var permissions: PermissionsManager
     @EnvironmentObject var settings: Settings
+    @EnvironmentObject private var updater: SoftwareUpdater
 
     /// Accessibility is always required; Screen Recording only when the user
     /// opted into screenshots.
@@ -645,6 +646,8 @@ struct MenuBarContent: View {
                 OpenSettingsButton()
                 Button("Welcome Tour…") { controller.showOnboarding() }
                 Spacer()
+                Button("Check for Updates…") { updater.checkForUpdates() }
+                    .disabled(!updater.canCheckForUpdates)
                 Button("Quit") { NSApplication.shared.terminate(nil) }
             }
         }
