@@ -10,10 +10,11 @@ final class ContextAnchorTests: XCTestCase {
     }
 
     func testTruncatedTabTitleMatches() {
-        XCTAssertTrue(RestoreMatcher.labelsMatch(
-            "Refactor the authentication mod…",
-            "Refactor the authentication module in api/auth"
-        ))
+        XCTAssertTrue(
+            RestoreMatcher.labelsMatch(
+                "Refactor the authentication mod…",
+                "Refactor the authentication module in api/auth"
+            ))
     }
 
     func testDifferentTabsDoNotMatch() {
@@ -24,31 +25,35 @@ final class ContextAnchorTests: XCTestCase {
     // MARK: - Content URL identity
 
     func testSameRouteMatchesDespiteFragmentAndSlash() {
-        XCTAssertTrue(ContentURL.matches(
-            "https://claude.ai/epitaxy/local_0ead4972#dframe-main",
-            "https://claude.ai/epitaxy/local_0ead4972/"
-        ))
+        XCTAssertTrue(
+            ContentURL.matches(
+                "https://claude.ai/epitaxy/local_0ead4972#dframe-main",
+                "https://claude.ai/epitaxy/local_0ead4972/"
+            ))
     }
 
     func testDifferentSessionsDoNotMatch() {
-        XCTAssertFalse(ContentURL.matches(
-            "https://claude.ai/epitaxy/local_0ead4972",
-            "https://claude.ai/epitaxy/local_77aa00bb"
-        ))
+        XCTAssertFalse(
+            ContentURL.matches(
+                "https://claude.ai/epitaxy/local_0ead4972",
+                "https://claude.ai/epitaxy/local_77aa00bb"
+            ))
         XCTAssertFalse(ContentURL.matches("", ""))
     }
 
     func testRouteAliasesOfSameSessionMatch() {
         // claude.ai serves one Cowork session as /epitaxy/<id> and /cowork/<id>.
-        XCTAssertTrue(ContentURL.matches(
-            "https://claude.ai/epitaxy/local_24dee658-486a-495d-aa49-dc3b94dc3a0a",
-            "https://claude.ai/cowork/local_24dee658-486a-495d-aa49-dc3b94dc3a0a"
-        ))
+        XCTAssertTrue(
+            ContentURL.matches(
+                "https://claude.ai/epitaxy/local_24dee658-486a-495d-aa49-dc3b94dc3a0a",
+                "https://claude.ai/cowork/local_24dee658-486a-495d-aa49-dc3b94dc3a0a"
+            ))
         // Generic words must not alias-match across different routes.
-        XCTAssertFalse(ContentURL.matches(
-            "https://example.com/docs/intro",
-            "https://example.com/blog/intro"
-        ))
+        XCTAssertFalse(
+            ContentURL.matches(
+                "https://example.com/docs/intro",
+                "https://example.com/blog/intro"
+            ))
     }
 
     // MARK: - Claude deep links
@@ -95,9 +100,10 @@ final class ContextAnchorTests: XCTestCase {
             windowID: 2, windowTitle: "T",
             locator: .generic(axWindowTitle: "T", axWindowIndex: nil)
         )
-        var json = try JSONSerialization.jsonObject(
-            with: JSONEncoder().encode(old)
-        ) as! [String: Any]
+        var json =
+            try JSONSerialization.jsonObject(
+                with: JSONEncoder().encode(old)
+            ) as! [String: Any]
         json.removeValue(forKey: "contextAnchor")
         let data = try JSONSerialization.data(withJSONObject: json)
 

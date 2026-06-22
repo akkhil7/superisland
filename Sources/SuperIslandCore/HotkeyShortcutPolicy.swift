@@ -22,7 +22,7 @@ public enum HotkeyShortcutPolicy {
         let commandOnly = modifiers == 256
         let letterKeyCodes: Set<Int> = [
             0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 11, 12, 13, 14, 15, 16, 17,
-            31, 32, 34, 35, 37, 38, 40, 45, 46
+            31, 32, 34, 35, 37, 38, 40, 45, 46,
         ]
         return commandOnly && letterKeyCodes.contains(keyCode)
     }

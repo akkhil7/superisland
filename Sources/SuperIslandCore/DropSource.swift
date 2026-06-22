@@ -22,7 +22,8 @@ public struct DropSource: Equatable, Sendable {
         switch locator {
         case .shell, .terminal, .iterm:
             if contentURL?.hasPrefix(CodexDeepLink.sessionURLPrefix) == true
-                || label.hasPrefix("Codex") {
+                || label.hasPrefix("Codex")
+            {
                 return DropSource(name: "Codex", icon: "chevron.left.forwardslash.chevron.right")
             }
             if label.hasPrefix("Claude Code") {
@@ -30,7 +31,8 @@ public struct DropSource: Equatable, Sendable {
             }
             return DropSource(name: SupportedApps.displayName(bundleID: bundleID), icon: "terminal")
         case .editor:
-            return DropSource(name: SupportedApps.displayName(bundleID: bundleID), icon: "curlybraces")
+            return DropSource(
+                name: SupportedApps.displayName(bundleID: bundleID), icon: "curlybraces")
         case .chrome:
             return DropSource(name: SupportedApps.displayName(bundleID: bundleID), icon: "globe")
         case .generic:
@@ -45,9 +47,11 @@ public struct DropSource: Equatable, Sendable {
         case SupportedApps.chrome, SupportedApps.chromeCanary, SupportedApps.brave:
             return DropSource(name: SupportedApps.displayName(bundleID: bundleID), icon: "globe")
         case EditorApp.cursor, EditorApp.vsCode:
-            return DropSource(name: SupportedApps.displayName(bundleID: bundleID), icon: "curlybraces")
+            return DropSource(
+                name: SupportedApps.displayName(bundleID: bundleID), icon: "curlybraces")
         default:
-            return DropSource(name: SupportedApps.displayName(bundleID: bundleID), icon: "app.dashed")
+            return DropSource(
+                name: SupportedApps.displayName(bundleID: bundleID), icon: "app.dashed")
         }
     }
 }

@@ -5,8 +5,8 @@ import Network
 // MARK: - Event type
 
 struct ShellEvent: Decodable {
-    let event: String       // "register" | "start" | "done"
-    let tty: String         // /dev/ttys003
+    let event: String  // "register" | "start" | "done"
+    let tty: String  // /dev/ttys003
     let cmd: String?
     let exitCode: Int?
     let duration: Int?
@@ -44,7 +44,7 @@ final class ShellServer {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         guard let p = NWEndpoint.Port(rawValue: Self.port),
-              let l = try? NWListener(using: params, on: p)
+            let l = try? NWListener(using: params, on: p)
         else { return }
 
         l.newConnectionHandler = { [weak self] conn in
@@ -67,14 +67,16 @@ final class ShellServer {
         connection.start(queue: .global(qos: .utility))
         // One read covers our payloads: shell events are <300 bytes; Claude
         // hook events (incl. prompt text) stay well under this cap.
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) { [weak self] data, _, _, _ in
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 256 * 1024) {
+            [weak self] data, _, _, _ in
             guard let data, !data.isEmpty,
-                  let str = String(data: data, encoding: .utf8),
-                  let sep = str.range(of: "\r\n\r\n")
+                let str = String(data: data, encoding: .utf8),
+                let sep = str.range(of: "\r\n\r\n")
             else { return }
 
             // Request line: "POST /shell HTTP/1.1" — route on the path.
-            let path = str.prefix(while: { $0 != "\r" })
+            let path =
+                str.prefix(while: { $0 != "\r" })
                 .components(separatedBy: " ")
                 .dropFirst().first ?? "/"
             let body = String(str[sep.upperBound...])
@@ -83,8 +85,9 @@ final class ShellServer {
             }
 
             let resp = "HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\nok"
-            connection.send(content: resp.data(using: .utf8),
-                            completion: .contentProcessed { _ in connection.cancel() })
+            connection.send(
+                content: resp.data(using: .utf8),
+                completion: .contentProcessed { _ in connection.cancel() })
         }
     }
 

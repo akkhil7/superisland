@@ -41,8 +41,8 @@ public enum ClaudeTerminalSession {
                 separator: " ", maxSplits: 2, omittingEmptySubsequences: true
             )
             guard cols.count >= 3,
-                  let pid = Int32(cols[0]), let ppid = Int32(cols[1]),
-                  AgentCommand.agentName(forCommand: String(cols[2])) == "Claude Code"
+                let pid = Int32(cols[0]), let ppid = Int32(cols[1]),
+                AgentCommand.agentName(forCommand: String(cols[2])) == "Claude Code"
             else { continue }
             claudes.append(Proc(pid: pid, ppid: ppid))
         }
@@ -80,7 +80,8 @@ public enum CommandLabel {
     /// truncated.
     public static func label(forCommand cmd: String, maxLength: Int = 32) -> String {
         if let agent = AgentCommand.agentName(forCommand: cmd) { return agent }
-        let oneLine = cmd
+        let oneLine =
+            cmd
             .replacingOccurrences(of: "\n", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard oneLine.count > maxLength else { return oneLine }
@@ -96,7 +97,8 @@ public enum AgentSessionLabel {
     /// nil when there's no usable prompt (keep the current label).
     public static func label(agent: String, prompt: String?, maxLength: Int = 60) -> String? {
         guard let prompt else { return nil }
-        let oneLine = prompt
+        let oneLine =
+            prompt
             .replacingOccurrences(of: "\n", with: " ")
             .replacingOccurrences(of: "\r", with: " ")
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -129,7 +131,7 @@ public enum HookRequestQuery {
     /// "??" (no controlling TTY — e.g. a desktop-app session) → nil.
     public static func normalizeTTY(_ raw: String?) -> String? {
         guard var tty = raw?.trimmingCharacters(in: .whitespaces),
-              !tty.isEmpty, tty != "??"
+            !tty.isEmpty, tty != "??"
         else { return nil }
         if !tty.hasPrefix("/dev/") { tty = "/dev/" + tty }
         return tty
@@ -159,7 +161,7 @@ public enum ProcessTreeTTY {
         psOutput.split(separator: "\n").compactMap { line in
             let cols = line.split(separator: " ", omittingEmptySubsequences: true)
             guard cols.count >= 2,
-                  let pid = Int32(cols[0]), let ppid = Int32(cols[1])
+                let pid = Int32(cols[0]), let ppid = Int32(cols[1])
             else { return nil }
             let tty = cols.count >= 3 ? String(cols[2]) : nil
             return Entry(pid: pid, ppid: ppid, tty: (tty == "??") ? nil : tty)
@@ -187,8 +189,8 @@ public enum ProcessTreeTTY {
         var out: [String] = []
         for entry in entries {
             guard let tty = HookRequestQuery.normalizeTTY(entry.tty),
-                  hasAncestor(entry.pid),
-                  seen.insert(tty).inserted
+                hasAncestor(entry.pid),
+                seen.insert(tty).inserted
             else { continue }
             out.append(tty)
         }
@@ -253,7 +255,8 @@ public struct EditorWindowTitle: Equatable, Sendable {
             segments = text.components(separatedBy: separator)
             if segments.count > 1 { break }
         }
-        segments = segments
+        segments =
+            segments
             .map { $0.trimmingCharacters(in: .whitespaces) }
             .filter { !$0.isEmpty }
         if let last = segments.last, EditorApp.appNameSegments.contains(last) {

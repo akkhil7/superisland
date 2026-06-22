@@ -70,7 +70,8 @@ public struct ClaudeHookEvent: Decodable, Equatable, Sendable {
         prompt = try container.decodeIfPresent(String.self, forKey: .prompt)
         transcriptPath = try container.decodeIfPresent(String.self, forKey: .transcriptPath)
         permissionMode = try container.decodeIfPresent(String.self, forKey: .permissionMode)
-        lastAssistantMessage = try container.decodeIfPresent(String.self, forKey: .lastAssistantMessage)
+        lastAssistantMessage = try container.decodeIfPresent(
+            String.self, forKey: .lastAssistantMessage)
         notificationType = try container.decodeIfPresent(String.self, forKey: .notificationType)
         tty = nil
     }
@@ -157,7 +158,8 @@ public enum ClaudeHooksConfigurator {
     public static let commandMarker = "superisland-claude-hook"
 
     public static func isInstalled(settings: [String: Any]) -> Bool {
-        AgentHooksConfigurator.isInstalled(settings: settings, events: events, marker: commandMarker)
+        AgentHooksConfigurator.isInstalled(
+            settings: settings, events: events, marker: commandMarker)
     }
 
     public static func install(settings: [String: Any], scriptPath: String) -> [String: Any] {
@@ -192,7 +194,7 @@ public enum AgentHooksConfigurator {
             var groups = (hooks[event] as? [[String: Any]]) ?? []
             if !ownsEntry(in: groups, marker: marker) {
                 groups.append([
-                    "hooks": [["type": "command", "command": scriptPath]],
+                    "hooks": [["type": "command", "command": scriptPath]]
                 ])
             }
             hooks[event] = groups
@@ -247,8 +249,8 @@ public enum AgentHooksConfigurator {
 /// table between the desktop's `local_` ids (in drop content URLs) and the
 /// CLI session ids that hooks report.
 public struct ClaudeLocalSession: Equatable, Sendable {
-    public let sessionID: String      // local_<uuid> — appears in content URLs
-    public let cliSessionID: String   // hook payload session_id
+    public let sessionID: String  // local_<uuid> — appears in content URLs
+    public let cliSessionID: String  // hook payload session_id
     public let title: String?
     /// Working directory — combined with `cliSessionID` to locate the
     /// transcript JSONL at drop time (no hook fires for an idle session).
@@ -263,8 +265,8 @@ public struct ClaudeLocalSession: Equatable, Sendable {
 
     public static func parse(data: Data) -> ClaudeLocalSession? {
         guard let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              let sessionID = obj["sessionId"] as? String,
-              let cliSessionID = obj["cliSessionId"] as? String
+            let sessionID = obj["sessionId"] as? String,
+            let cliSessionID = obj["cliSessionId"] as? String
         else { return nil }
         return ClaudeLocalSession(
             sessionID: sessionID,

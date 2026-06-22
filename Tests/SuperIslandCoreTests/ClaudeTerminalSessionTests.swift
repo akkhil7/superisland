@@ -8,19 +8,19 @@ final class ClaudeTerminalSessionTests: XCTestCase {
         // `ps -t ttys002 -o pid=,ppid=,command=` — the login shell, zsh, a
         // gitstatus helper, and the claude CLI sharing one terminal.
         let ps = """
-          72006  1147 login -fp akhil
-          72007 72006 -zsh
-          72135 72042 /Users/akhil/.cache/gitstatus/gitstatusd-darwin-arm64 -s
-          72315 72007 claude
-        """
+              72006  1147 login -fp akhil
+              72007 72006 -zsh
+              72135 72042 /Users/akhil/.cache/gitstatus/gitstatusd-darwin-arm64 -s
+              72315 72007 claude
+            """
         XCTAssertEqual(ClaudeTerminalSession.claudePID(psOutput: ps), 72315)
     }
 
     func testNilWhenNoClaudeOnTTY() {
         let ps = """
-          72006  1147 login -fp akhil
-          72007 72006 -zsh
-        """
+              72006  1147 login -fp akhil
+              72007 72006 -zsh
+            """
         XCTAssertNil(ClaudeTerminalSession.claudePID(psOutput: ps))
     }
 
@@ -33,10 +33,10 @@ final class ClaudeTerminalSessionTests: XCTestCase {
         // A claude spawned by another claude on the same tty: the session that
         // owns the terminal is the outer one (parent is the shell, not claude).
         let ps = """
-          200 100 -zsh
-          300 200 claude
-          400 300 claude
-        """
+              200 100 -zsh
+              300 200 claude
+              400 300 claude
+            """
         XCTAssertEqual(ClaudeTerminalSession.claudePID(psOutput: ps), 300)
     }
 

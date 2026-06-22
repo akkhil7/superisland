@@ -32,8 +32,8 @@ public enum SupportedApps {
         // intentionally excluded from the supported set.
         EditorApp.cursor, EditorApp.vsCode,
         // AI desktop apps
-        ClaudeDeepLink.bundleID,   // Claude Desktop
-        CodexDeepLink.bundleID,    // Codex
+        ClaudeDeepLink.bundleID,  // Claude Desktop
+        CodexDeepLink.bundleID,  // Codex
     ]
 
     /// Whether SuperIsland supports placing a drop on the app with this bundle id.
@@ -69,7 +69,7 @@ public enum SupportedApps {
 /// Pure mapping; the live install/enabled state is resolved by the app layer.
 public enum RequiredIntegration: String, Sendable {
     case chrome
-    case shell   // terminals + editors (status via integrated-terminal shell hooks)
+    case shell  // terminals + editors (status via integrated-terminal shell hooks)
     case claude
     case codex
 
@@ -80,7 +80,7 @@ public enum RequiredIntegration: String, Sendable {
         case SupportedApps.chrome, SupportedApps.chromeCanary, SupportedApps.brave:
             return .chrome
         case SupportedApps.terminal, SupportedApps.iterm,
-             EditorApp.cursor, EditorApp.vsCode:
+            EditorApp.cursor, EditorApp.vsCode:
             return .shell
         case ClaudeDeepLink.bundleID:
             return .claude

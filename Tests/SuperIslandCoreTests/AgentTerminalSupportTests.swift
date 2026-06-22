@@ -92,14 +92,14 @@ final class AgentTerminalSupportTests: XCTestCase {
     // MARK: - ProcessTreeTTY
 
     private let psOutput = """
-        1     0 ??
-      300     1 ttys001
-      500     1 ??
-      510   500 ??
-      520   510 ttys004
-      530   510 ttys005
-      999   998 ttys009
-    """
+            1     0 ??
+          300     1 ttys001
+          500     1 ??
+          510   500 ??
+          520   510 ttys004
+          530   510 ttys005
+          999   998 ttys009
+        """
 
     func testParsePSOutput() {
         let entries = ProcessTreeTTY.parse(psOutput: psOutput)
@@ -187,9 +187,9 @@ final class AgentTerminalSupportTests: XCTestCase {
 
     func testHookEventDecodesPromptAndDefaultsTTY() throws {
         let json = """
-        {"session_id":"abc","hook_event_name":"UserPromptSubmit",\
-        "cwd":"/Users/x/proj","prompt":"fix the login bug"}
-        """
+            {"session_id":"abc","hook_event_name":"UserPromptSubmit",\
+            "cwd":"/Users/x/proj","prompt":"fix the login bug"}
+            """
         var event = try JSONDecoder().decode(ClaudeHookEvent.self, from: Data(json.utf8))
         XCTAssertEqual(event.prompt, "fix the login bug")
         XCTAssertNil(event.tty, "tty is server-assigned, never decoded")

@@ -106,7 +106,7 @@ enum CaptureService {
         config.width = max(1, Int(scWindow.frame.width * scale))
         config.height = max(1, Int(scWindow.frame.height * scale))
         config.showsCursor = false
-        config.capturesAudio = false   // SuperIsland only ever needs a still image.
+        config.capturesAudio = false  // SuperIsland only ever needs a still image.
 
         let cgImage = try await SCScreenshotManager.captureImage(
             contentFilter: filter, configuration: config

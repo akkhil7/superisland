@@ -2,7 +2,9 @@ import XCTest
 @testable import SuperIslandCore
 
 final class ChromeCaptureMatchingTests: XCTestCase {
-    private func store(withTabs tabs: [ChromeTabState], lastActive: Int? = nil) -> ChromeBridgeStateStore {
+    private func store(withTabs tabs: [ChromeTabState], lastActive: Int? = nil)
+        -> ChromeBridgeStateStore
+    {
         let s = ChromeBridgeStateStore()
         for tab in tabs {
             s.update(event: ChromeBridgeExtensionEvent(type: .tabState, tab: tab, domSummary: nil))
@@ -15,7 +17,8 @@ final class ChromeCaptureMatchingTests: XCTestCase {
     }
 
     private func tab(_ id: Int, title: String, url: String) -> ChromeTabState {
-        ChromeTabState(tabID: id, windowID: 1, index: id, url: url, title: title, documentID: nil, status: nil)
+        ChromeTabState(
+            tabID: id, windowID: 1, index: id, url: url, title: title, documentID: nil, status: nil)
     }
 
     func testStaleLastActiveTabIsRejectedWhenTitleDisagrees() {
@@ -24,7 +27,7 @@ final class ChromeCaptureMatchingTests: XCTestCase {
                 tab(1, title: "CI pipeline run", url: "https://ci.example.com"),
                 tab(2, title: "Claude conversation", url: "https://claude.ai/chat/x"),
             ],
-            lastActive: 1   // extension lags: still claims tab 1 is active
+            lastActive: 1  // extension lags: still claims tab 1 is active
         )
         // The user is actually dropping the Claude tab (window title says so).
         let best = s.bestActiveTab(matchingTitle: "Claude conversation - Google Chrome")

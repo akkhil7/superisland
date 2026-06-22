@@ -66,7 +66,7 @@ final class NotchIslandController {
         panel.level = .statusBar
         panel.backgroundColor = .clear
         panel.isOpaque = false
-        panel.hasShadow = false   // shadow is drawn by the SwiftUI shape instead
+        panel.hasShadow = false  // shadow is drawn by the SwiftUI shape instead
         panel.collectionBehavior = [.canJoinAllSpaces, .stationary, .fullScreenAuxiliary]
         // CRITICAL: the panel's frame is a large mostly-transparent rect. With
         // `ignoresMouseEvents = false` macOS delivers EVERY click in the frame
@@ -114,7 +114,8 @@ final class NotchIslandController {
                 MainActor.assumeIsolated { self?.updateMouseInteractivity() }
             }
         }
-        localMouseMoveMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+        localMouseMoveMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) {
+            [weak self] event in
             DispatchQueue.main.async {
                 MainActor.assumeIsolated { self?.updateMouseInteractivity() }
             }
@@ -144,7 +145,7 @@ final class NotchIslandController {
                     guard let self else { return }
                     self.hoverCollapseWork = nil
                     guard self.controller.settings.islandExpandOnHover,
-                          !self.islandScreenRect.contains(NSEvent.mouseLocation)
+                        !self.islandScreenRect.contains(NSEvent.mouseLocation)
                     else { return }
                     self.collapseIfExpanded()
                 }

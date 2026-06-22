@@ -6,9 +6,9 @@ final class ClaudeHookSupportTests: XCTestCase {
 
     func testDecodesHookStdinPayload() throws {
         let json = """
-        {"session_id":"ef360e63-fcbf","transcript_path":"/t.jsonl","cwd":"/Users/x",
-         "hook_event_name":"Notification","message":"Claude needs permission to use Bash"}
-        """
+            {"session_id":"ef360e63-fcbf","transcript_path":"/t.jsonl","cwd":"/Users/x",
+             "hook_event_name":"Notification","message":"Claude needs permission to use Bash"}
+            """
         let event = try JSONDecoder().decode(ClaudeHookEvent.self, from: Data(json.utf8))
         XCTAssertEqual(event.sessionID, "ef360e63-fcbf")
         XCTAssertEqual(event.event, "Notification")
@@ -17,10 +17,10 @@ final class ClaudeHookSupportTests: XCTestCase {
 
     func testDecodesTranscriptPathAndPermissionMode() throws {
         let json = """
-        {"session_id":"s1","hook_event_name":"PreToolUse",
-         "transcript_path":"/Users/x/.claude/projects/-Users-x/s1.jsonl",
-         "permission_mode":"default","tool_name":"Bash"}
-        """
+            {"session_id":"s1","hook_event_name":"PreToolUse",
+             "transcript_path":"/Users/x/.claude/projects/-Users-x/s1.jsonl",
+             "permission_mode":"default","tool_name":"Bash"}
+            """
         let event = try JSONDecoder().decode(ClaudeHookEvent.self, from: Data(json.utf8))
         XCTAssertEqual(event.event, "PreToolUse")
         XCTAssertEqual(event.transcriptPath, "/Users/x/.claude/projects/-Users-x/s1.jsonl")
@@ -37,12 +37,12 @@ final class ClaudeHookSupportTests: XCTestCase {
         XCTAssertEqual(status("Stop"), .done)
         XCTAssertEqual(status("StopFailure"), .needsAttention)
         XCTAssertEqual(status("Notification"), .needsAttention)
-        XCTAssertNil(status("SessionEnd"))            // reason-only update
+        XCTAssertNil(status("SessionEnd"))  // reason-only update
         // Tool-use events mean the agent resumed — they clear a prior
         // needsAttention (e.g. after you approve a permission prompt).
         XCTAssertEqual(status("PreToolUse"), .working)
         XCTAssertEqual(status("PostToolUse"), .working)
-        XCTAssertNil(status("SomethingElse"))         // unmapped event ignored
+        XCTAssertNil(status("SomethingElse"))  // unmapped event ignored
     }
 
     func testManagedEventsCoverToolUse() {
@@ -54,31 +54,35 @@ final class ClaudeHookSupportTests: XCTestCase {
     func testIdleNotificationIsReadyNotAttention() {
         // The ~60s idle notification after Claude finishes must not flip the
         // drop to needsAttention — it means "your turn", not an interruption.
-        let idle = ClaudeHookMapper.update(for: ClaudeHookEvent(
-            sessionID: "s", event: "Notification", message: "Claude is waiting for your input"
-        ))
+        let idle = ClaudeHookMapper.update(
+            for: ClaudeHookEvent(
+                sessionID: "s", event: "Notification", message: "Claude is waiting for your input"
+            ))
         XCTAssertEqual(idle?.status, .done)
 
         // A genuine permission notification still needs attention.
-        let perm = ClaudeHookMapper.update(for: ClaudeHookEvent(
-            sessionID: "s", event: "Notification", message: "Claude needs your permission to use Bash"
-        ))
+        let perm = ClaudeHookMapper.update(
+            for: ClaudeHookEvent(
+                sessionID: "s", event: "Notification",
+                message: "Claude needs your permission to use Bash"
+            ))
         XCTAssertEqual(perm?.status, .needsAttention)
     }
 
     func testNotificationMessageBecomesReason() {
-        let update = ClaudeHookMapper.update(for: ClaudeHookEvent(
-            sessionID: "s", event: "Notification", message: "Permission needed"
-        ))
+        let update = ClaudeHookMapper.update(
+            for: ClaudeHookEvent(
+                sessionID: "s", event: "Notification", message: "Permission needed"
+            ))
         XCTAssertEqual(update?.reason, "Permission needed")
     }
 
     func testDecodesNotificationTypeAndLastAssistantMessage() throws {
         let json = """
-        {"session_id":"s1","hook_event_name":"Stop",
-         "last_assistant_message":"All done — nothing else needed.",
-         "notification_type":"idle_prompt"}
-        """
+            {"session_id":"s1","hook_event_name":"Stop",
+             "last_assistant_message":"All done — nothing else needed.",
+             "notification_type":"idle_prompt"}
+            """
         let event = try JSONDecoder().decode(ClaudeHookEvent.self, from: Data(json.utf8))
         XCTAssertEqual(event.lastAssistantMessage, "All done — nothing else needed.")
         XCTAssertEqual(event.notificationType, "idle_prompt")
@@ -86,9 +90,10 @@ final class ClaudeHookSupportTests: XCTestCase {
 
     func testNotificationMappingPrefersTypedField() {
         func status(type: String?, message: String? = nil) -> DropStatus? {
-            ClaudeHookMapper.update(for: ClaudeHookEvent(
-                sessionID: "s", event: "Notification", message: message, notificationType: type
-            ))?.status
+            ClaudeHookMapper.update(
+                for: ClaudeHookEvent(
+                    sessionID: "s", event: "Notification", message: message, notificationType: type
+                ))?.status
         }
         // Typed fields are exact ground truth, no string matching.
         XCTAssertEqual(status(type: "idle_prompt"), .done)
@@ -110,8 +115,8 @@ final class ClaudeHookSupportTests: XCTestCase {
             "model": "opus",
             "hooks": [
                 "PostToolUse": [
-                    ["matcher": "Edit", "hooks": [["type": "command", "command": "prettier"]]],
-                ],
+                    ["matcher": "Edit", "hooks": [["type": "command", "command": "prettier"]]]
+                ]
             ],
         ]
         let once = ClaudeHooksConfigurator.install(settings: existing, scriptPath: script)
@@ -119,12 +124,14 @@ final class ClaudeHookSupportTests: XCTestCase {
 
         XCTAssertEqual(twice["model"] as? String, "opus")
         let hooks = twice["hooks"] as? [String: Any] ?? [:]
-        XCTAssertNotNil(hooks["PostToolUse"])         // untouched
+        XCTAssertNotNil(hooks["PostToolUse"])  // untouched
         for event in ClaudeHooksConfigurator.events {
             let groups = hooks[event] as? [[String: Any]] ?? []
             let ours = groups.filter {
                 (($0["hooks"] as? [[String: Any]]) ?? [])
-                    .contains { ($0["command"] as? String)?.contains("superisland-claude-hook") == true }
+                    .contains {
+                        ($0["command"] as? String)?.contains("superisland-claude-hook") == true
+                    }
             }
             XCTAssertEqual(ours.count, 1, "exactly one SuperIsland entry for \(event)")
         }
@@ -134,8 +141,8 @@ final class ClaudeHookSupportTests: XCTestCase {
     func testUninstallRemovesOnlyOurEntries() {
         let existing: [String: Any] = [
             "hooks": [
-                "Stop": [["matcher": "", "hooks": [["type": "command", "command": "say done"]]]],
-            ],
+                "Stop": [["matcher": "", "hooks": [["type": "command", "command": "say done"]]]]
+            ]
         ]
         let installed = ClaudeHooksConfigurator.install(settings: existing, scriptPath: script)
         let removed = ClaudeHooksConfigurator.uninstall(settings: installed)
@@ -151,9 +158,9 @@ final class ClaudeHookSupportTests: XCTestCase {
 
     func testParsesLocalSessionMetadata() {
         let json = """
-        {"sessionId":"local_0ead4972-4f52","cliSessionId":"ef360e63-fcbf",
-         "title":"macOS task status tracking app","model":"claude-fable-5"}
-        """
+            {"sessionId":"local_0ead4972-4f52","cliSessionId":"ef360e63-fcbf",
+             "title":"macOS task status tracking app","model":"claude-fable-5"}
+            """
         let session = ClaudeLocalSession.parse(data: Data(json.utf8))
         XCTAssertEqual(session?.sessionID, "local_0ead4972-4f52")
         XCTAssertEqual(session?.cliSessionID, "ef360e63-fcbf")

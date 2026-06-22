@@ -35,10 +35,11 @@ struct SettingsIcon: View {
             .frame(width: 26, height: 26)
             .background(
                 RoundedRectangle(cornerRadius: 6.5, style: .continuous)
-                    .fill(LinearGradient(
-                        colors: [color.opacity(0.85), color],
-                        startPoint: .top, endPoint: .bottom
-                    ))
+                    .fill(
+                        LinearGradient(
+                            colors: [color.opacity(0.85), color],
+                            startPoint: .top, endPoint: .bottom
+                        ))
             )
     }
 }
@@ -48,7 +49,7 @@ struct SettingsRowLabel: View {
     let icon: String
     let color: Color
     let title: String
-    var subtitle: String? = nil
+    var subtitle: String?
 
     var body: some View {
         HStack(spacing: 10) {
@@ -185,7 +186,8 @@ struct GeneralSettingsPane: View {
                     SettingsRowLabel(
                         icon: "camera.viewfinder", color: .blue,
                         title: "Capture screenshots",
-                        subtitle: "Lets SuperIsland read windows that expose no text (many Electron apps). Sent to Claude only for your drops. Needs Screen Recording."
+                        subtitle:
+                            "Lets SuperIsland read windows that expose no text (many Electron apps). Sent to Claude only for your drops. Needs Screen Recording."
                     )
                 }
             }
@@ -235,14 +237,18 @@ struct IntegrationsSettingsPane: View {
             title: "Codex",
             status: settings.codexIntegrationEnabled ? ("Active", .green) : ("Off", .gray)
         ) {
-            Text("No setup. SuperIsland reads Codex's session journals directly: working, finished (with Codex's last message), or waiting for approval, even in background tabs. Clicking a drop jumps to the exact thread.")
-                .settingsCaption()
+            Text(
+                "No setup. SuperIsland reads Codex's session journals directly: working, finished (with Codex's last message), or waiting for approval, even in background tabs. Clicking a drop jumps to the exact thread."
+            )
+            .settingsCaption()
             Toggle("Read Codex session journals", isOn: $settings.codexIntegrationEnabled)
                 .controlSize(.small)
-            Text("Prompt a thread first, then place the drop — the freshest journal tells SuperIsland which thread it is.")
-                .font(.caption2)
-                .foregroundStyle(.tertiary)
-                .fixedSize(horizontal: false, vertical: true)
+            Text(
+                "Prompt a thread first, then place the drop — the freshest journal tells SuperIsland which thread it is."
+            )
+            .font(.caption2)
+            .foregroundStyle(.tertiary)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -254,8 +260,10 @@ struct IntegrationsSettingsPane: View {
             title: "Claude Desktop",
             status: claudeIntegration.isInstalled ? ("Active", .green) : ("Not set up", .gray)
         ) {
-            Text("Live status for Claude Code and Cowork sessions via Claude's own hooks: the instant Claude finishes or needs you, your drop updates — even in background tabs. No AI calls.")
-                .settingsCaption()
+            Text(
+                "Live status for Claude Code and Cowork sessions via Claude's own hooks: the instant Claude finishes or needs you, your drop updates — even in background tabs. No AI calls."
+            )
+            .settingsCaption()
 
             if let claudeError {
                 Text(claudeError).font(.caption).foregroundStyle(.red)
@@ -301,8 +309,10 @@ struct IntegrationsSettingsPane: View {
             title: "Shell Integration",
             status: shellIntegration.isInstalled ? ("Active", .green) : ("Not set up", .gray)
         ) {
-            Text("Tracks commands in Terminal, iTerm2, Warp, and any other terminal through zsh/bash hooks. Status flips the instant a command finishes — no AI, no screenshots.")
-                .settingsCaption()
+            Text(
+                "Tracks commands in Terminal, iTerm2, Warp, and any other terminal through zsh/bash hooks. Status flips the instant a command finishes — no AI, no screenshots."
+            )
+            .settingsCaption()
 
             if let shellError {
                 Text(shellError).font(.caption).foregroundStyle(.red)
@@ -310,11 +320,13 @@ struct IntegrationsSettingsPane: View {
 
             if shellIntegration.isInstalled {
                 HStack {
-                    Text(shellIntegration.activeSessions > 0
-                         ? "\(shellIntegration.activeSessions) session\(shellIntegration.activeSessions == 1 ? "" : "s") connected"
-                         : "Open a new terminal window to connect.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                    Text(
+                        shellIntegration.activeSessions > 0
+                            ? "\(shellIntegration.activeSessions) session\(shellIntegration.activeSessions == 1 ? "" : "s") connected"
+                            : "Open a new terminal window to connect."
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
                     Spacer()
                     Button("Uninstall", role: .destructive) {
                         shellIntegration.uninstall()
@@ -357,8 +369,10 @@ struct IntegrationsSettingsPane: View {
             title: "Chrome Extension",
             status: chromeStatus
         ) {
-            Text("Tracks the exact tab — even in the background — using Chrome's own tab identity and page signals. Far stronger than screenshots for Claude, ChatGPT, CI pages, and deploys.")
-                .settingsCaption()
+            Text(
+                "Tracks the exact tab — even in the background — using Chrome's own tab identity and page signals. Far stronger than screenshots for Claude, ChatGPT, CI pages, and deploys."
+            )
+            .settingsCaption()
 
             if let chromeError {
                 Text(chromeError).font(.caption).foregroundStyle(.red)
@@ -383,37 +397,50 @@ struct IntegrationsSettingsPane: View {
                 }
             } else if !chromeIntegration.isExtensionLoaded {
                 VStack(alignment: .leading, spacing: 6) {
-                    Label("Native host installed. One step left in Chrome:", systemImage: "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.green)
-                    Text("Turn on **Developer mode** on the extensions page, then drag the revealed **ChromeExtension** folder onto it (or click “Load unpacked”).")
-                        .settingsCaption()
+                    Label(
+                        "Native host installed. One step left in Chrome:",
+                        systemImage: "checkmark.circle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                    Text(
+                        "Turn on **Developer mode** on the extensions page, then drag the revealed **ChromeExtension** folder onto it (or click “Load unpacked”)."
+                    )
+                    .settingsCaption()
                     HStack(spacing: 8) {
-                        Button("Open Chrome Extensions") { chromeIntegration.openChromeExtensions() }
-                            .controlSize(.small)
+                        Button("Open Chrome Extensions") {
+                            chromeIntegration.openChromeExtensions()
+                        }
+                        .controlSize(.small)
                         Button("Reveal Folder") { chromeIntegration.revealExtensionFolder() }
                             .controlSize(.small)
                         Button("Check Again") { chromeIntegration.refresh() }
                             .controlSize(.small)
                         Spacer()
-                        Button("Uninstall", role: .destructive) { chromeIntegration.uninstallNativeHost() }
-                            .controlSize(.small)
+                        Button("Uninstall", role: .destructive) {
+                            chromeIntegration.uninstallNativeHost()
+                        }
+                        .controlSize(.small)
                     }
                 }
             } else {
                 HStack {
-                    Label(chromeIntegration.isBridgeConnected
-                          ? "Live — Chrome is reporting tab state."
-                          : "Extension loaded. Reload it (or restart Chrome) if events don't arrive.",
-                          systemImage: chromeIntegration.isBridgeConnected
-                          ? "dot.radiowaves.left.and.right" : "checkmark.circle.fill")
-                        .font(.caption)
-                        .foregroundStyle(.green)
+                    Label(
+                        chromeIntegration.isBridgeConnected
+                            ? "Live — Chrome is reporting tab state."
+                            : "Extension loaded. Reload it (or restart Chrome) if events don't arrive.",
+                        systemImage: chromeIntegration.isBridgeConnected
+                            ? "dot.radiowaves.left.and.right" : "checkmark.circle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.green)
                     Spacer()
                     Button("Check Again") { chromeIntegration.refresh() }
                         .controlSize(.small)
-                    Button("Uninstall", role: .destructive) { chromeIntegration.uninstallNativeHost() }
-                        .controlSize(.small)
+                    Button("Uninstall", role: .destructive) {
+                        chromeIntegration.uninstallNativeHost()
+                    }
+                    .controlSize(.small)
                 }
             }
         }
@@ -427,8 +454,10 @@ struct IntegrationsSettingsPane: View {
             title: "Other Apps",
             status: settings.rememberVisualState ? ("On", .green) : ("Off", .gray)
         ) {
-            Text("Apps without a deep integration get encrypted, local-only visual memory: SuperIsland remembers what your task looked like and highlights it when you return — always confirm-before-click.")
-                .settingsCaption()
+            Text(
+                "Apps without a deep integration get encrypted, local-only visual memory: SuperIsland remembers what your task looked like and highlights it when you return — always confirm-before-click."
+            )
+            .settingsCaption()
             Toggle("Remember visual state for generic apps", isOn: $settings.rememberVisualState)
                 .controlSize(.small)
         }
@@ -455,7 +484,8 @@ struct PermissionsSettingsPane: View {
                 permissionRow(
                     icon: "accessibility", color: .blue,
                     title: "Accessibility",
-                    subtitle: "Reads window text and raises the exact window when you click a drop. Required.",
+                    subtitle:
+                        "Reads window text and raises the exact window when you click a drop. Required.",
                     granted: permissions.accessibility == .granted,
                     tccService: "Accessibility"
                 ) {
@@ -475,9 +505,11 @@ struct PermissionsSettingsPane: View {
                     permissions.openScreenRecordingSettings()
                 }
             } footer: {
-                Text("Toggle ON in System Settings but SuperIsland still shows “not granted”? The grant went stale after a rebuild — click ⟲ to reset SuperIsland's permission entry and get a fresh prompt.")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
+                Text(
+                    "Toggle ON in System Settings but SuperIsland still shows “not granted”? The grant went stale after a rebuild — click ⟲ to reset SuperIsland's permission entry and get a fresh prompt."
+                )
+                .font(.caption2)
+                .foregroundStyle(.secondary)
             }
 
             Section {
@@ -485,7 +517,8 @@ struct PermissionsSettingsPane: View {
                     SettingsRowLabel(
                         icon: "gearshape.2", color: .gray,
                         title: "Automation",
-                        subtitle: "Lets SuperIsland select exact Chrome tabs and terminal panes via Apple Events. macOS asks per-app on first use."
+                        subtitle:
+                            "Lets SuperIsland select exact Chrome tabs and terminal panes via Apple Events. macOS asks per-app on first use."
                     )
                     Spacer()
                     Button("Open Settings…") { permissions.openAutomationSettings() }
@@ -515,7 +548,9 @@ struct PermissionsSettingsPane: View {
                     Image(systemName: "arrow.counterclockwise")
                 }
                 .controlSize(.small)
-                .help("Reset SuperIsland's \(title) entry and re-prompt (fixes a stale grant after a rebuild)")
+                .help(
+                    "Reset SuperIsland's \(title) entry and re-prompt (fixes a stale grant after a rebuild)"
+                )
             }
         }
     }

@@ -26,7 +26,9 @@ struct HotkeyRegistrationDiagnosticTests {
         )
 
         #expect(!diagnostic.isRegistered)
-        #expect(diagnostic.summary == "Shortcut unavailable: Option-Command-K is already used by another app.")
+        #expect(
+            diagnostic.summary
+                == "Shortcut unavailable: Option-Command-K is already used by another app.")
     }
 
     @Test("handler install failure is surfaced")
@@ -39,6 +41,7 @@ struct HotkeyRegistrationDiagnosticTests {
         )
 
         #expect(!diagnostic.isRegistered)
-        #expect(diagnostic.summary == "Shortcut unavailable: event handler failed with OSStatus -1.")
+        #expect(
+            diagnostic.summary == "Shortcut unavailable: event handler failed with OSStatus -1.")
     }
 }

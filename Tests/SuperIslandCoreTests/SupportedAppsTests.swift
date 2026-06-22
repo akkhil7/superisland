@@ -27,8 +27,8 @@ final class SupportedAppsTests: XCTestCase {
             "com.apple.finder",
             "com.apple.Safari",
             "com.tinyspeck.slackmacgap",
-            "com.microsoft.VSCodeInsiders", // Insiders intentionally excluded
-            "com.vscodium",                 // VSCodium intentionally excluded
+            "com.microsoft.VSCodeInsiders",  // Insiders intentionally excluded
+            "com.vscodium",  // VSCodium intentionally excluded
             "com.example.SomeApp",
             "",
         ]
@@ -46,7 +46,8 @@ final class SupportedAppsTests: XCTestCase {
         XCTAssertEqual(SupportedApps.displayName(bundleID: "com.googlecode.iterm2"), "iTerm")
         XCTAssertEqual(SupportedApps.displayName(bundleID: EditorApp.cursor), "Cursor")
         XCTAssertEqual(SupportedApps.displayName(bundleID: EditorApp.vsCode), "VS Code")
-        XCTAssertEqual(SupportedApps.displayName(bundleID: ClaudeDeepLink.bundleID), "Claude Desktop")
+        XCTAssertEqual(
+            SupportedApps.displayName(bundleID: ClaudeDeepLink.bundleID), "Claude Desktop")
         XCTAssertEqual(SupportedApps.displayName(bundleID: CodexDeepLink.bundleID), "Codex")
     }
 

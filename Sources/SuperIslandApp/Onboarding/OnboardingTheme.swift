@@ -41,8 +41,9 @@ enum OnboardingTheme {
 
     // MARK: Resources
     static func resourceURL(_ name: String) -> URL? {
-        guard let url = Bundle.main.resourceURL?
-            .appendingPathComponent("Onboarding/\(name)"),
+        guard
+            let url = Bundle.main.resourceURL?
+                .appendingPathComponent("Onboarding/\(name)"),
             FileManager.default.fileExists(atPath: url.path)
         else { return nil }
         return url
@@ -78,7 +79,7 @@ struct OnboardingBackground: View {
             }
             Starfield()
         }
-        .clipped()   // scaledToFill overflow stays inside the window bounds
+        .clipped()  // scaledToFill overflow stays inside the window bounds
         .ignoresSafeArea()
     }
 }
@@ -118,10 +119,11 @@ struct GlowPillButtonStyle: ButtonStyle {
             .padding(.horizontal, 22)
             .padding(.vertical, 9)
             .background(
-                Capsule().fill(LinearGradient(
-                    colors: [OnboardingTheme.purple, OnboardingTheme.purpleLight],
-                    startPoint: .leading, endPoint: .trailing
-                ))
+                Capsule().fill(
+                    LinearGradient(
+                        colors: [OnboardingTheme.purple, OnboardingTheme.purpleLight],
+                        startPoint: .leading, endPoint: .trailing
+                    ))
             )
             .shadow(color: OnboardingTheme.glow, radius: 14, y: 2)
             .opacity(configuration.isPressed ? 0.8 : 1)
@@ -192,14 +194,17 @@ struct SuperIslandLogo: View {
     var body: some View {
         ZStack {
             RoundedRectangle(cornerRadius: size * 8 / 32, style: .continuous)
-                .fill(LinearGradient(
-                    colors: [OnboardingTheme.purple, OnboardingTheme.purpleLight],
-                    startPoint: .top, endPoint: .bottom
-                ))
+                .fill(
+                    LinearGradient(
+                        colors: [OnboardingTheme.purple, OnboardingTheme.purpleLight],
+                        startPoint: .top, endPoint: .bottom
+                    ))
             ClipStroke()
-                .stroke(.white, style: StrokeStyle(
-                    lineWidth: size * 2.6 / 32, lineCap: .round
-                ))
+                .stroke(
+                    .white,
+                    style: StrokeStyle(
+                        lineWidth: size * 2.6 / 32, lineCap: .round
+                    ))
         }
         .frame(width: size, height: size)
         .shadow(color: OnboardingTheme.glow, radius: 26, y: 4)
@@ -213,11 +218,13 @@ struct SuperIslandLogo: View {
             var p = Path()
             p.move(to: CGPoint(x: 10 * s, y: 8 * s))
             p.addLine(to: CGPoint(x: 10 * s, y: 19 * s))
-            p.addArc(center: CGPoint(x: 16 * s, y: 19 * s), radius: 6 * s,
-                     startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
+            p.addArc(
+                center: CGPoint(x: 16 * s, y: 19 * s), radius: 6 * s,
+                startAngle: .degrees(180), endAngle: .degrees(0), clockwise: true)
             p.addLine(to: CGPoint(x: 22 * s, y: 9.5 * s))
-            p.addArc(center: CGPoint(x: 18.5 * s, y: 9.5 * s), radius: 3.5 * s,
-                     startAngle: .degrees(0), endAngle: .degrees(180), clockwise: true)
+            p.addArc(
+                center: CGPoint(x: 18.5 * s, y: 9.5 * s), radius: 3.5 * s,
+                startAngle: .degrees(0), endAngle: .degrees(180), clockwise: true)
             p.addLine(to: CGPoint(x: 15 * s, y: 19 * s))
             return p
         }
@@ -232,11 +239,14 @@ struct PurpleSwitchToggleStyle: ToggleStyle {
             configuration.isOn.toggle()
         } label: {
             Capsule()
-                .fill(configuration.isOn
-                      ? AnyShapeStyle(LinearGradient(
-                          colors: [OnboardingTheme.purple, OnboardingTheme.purpleLight],
-                          startPoint: .leading, endPoint: .trailing))
-                      : AnyShapeStyle(Color.white.opacity(0.14)))
+                .fill(
+                    configuration.isOn
+                        ? AnyShapeStyle(
+                            LinearGradient(
+                                colors: [OnboardingTheme.purple, OnboardingTheme.purpleLight],
+                                startPoint: .leading, endPoint: .trailing))
+                        : AnyShapeStyle(Color.white.opacity(0.14))
+                )
                 .frame(width: 40, height: 23)
                 .overlay(alignment: configuration.isOn ? .trailing : .leading) {
                     Circle()

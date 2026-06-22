@@ -27,7 +27,8 @@ final class AlertBannerHostController {
         let root = AlertBannerBar(onSize: { [weak container] size in
             guard let container else { return }
             // Centered row, anchored `topInset` below the top of the window.
-            container.interactiveRect = size.width <= 0
+            container.interactiveRect =
+                size.width <= 0
                 ? .zero
                 : CGRect(
                     x: (w - size.width) / 2,
@@ -61,7 +62,7 @@ final class AlertBannerHostController {
         panel.ignoresMouseEvents = true
 
         container.frame = NSRect(x: 0, y: 0, width: w, height: h)
-        container.interactiveRect = .zero   // nothing interactive until a banner shows
+        container.interactiveRect = .zero  // nothing interactive until a banner shows
         container.addSubview(hostingView)
         panel.contentView = container
     }
@@ -89,7 +90,8 @@ final class AlertBannerHostController {
                 MainActor.assumeIsolated { self?.updateInteractivity() }
             }
         }
-        localMouseMoveMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) { [weak self] event in
+        localMouseMoveMonitor = NSEvent.addLocalMonitorForEvents(matching: mask) {
+            [weak self] event in
             DispatchQueue.main.async {
                 MainActor.assumeIsolated { self?.updateInteractivity() }
             }

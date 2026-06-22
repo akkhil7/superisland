@@ -69,7 +69,8 @@ final class AppController: ObservableObject {
     private var autoDismissScheduled = Set<UUID>()
 
     init() {
-        let url = (try? DropStore.defaultFileURL())
+        let url =
+            (try? DropStore.defaultFileURL())
             ?? FileManager.default.temporaryDirectory.appendingPathComponent("drops.json")
         store = DropStore(fileURL: url)
         settings = Settings()
@@ -159,7 +160,7 @@ final class AppController: ObservableObject {
         }
         RunLoop.main.add(t, forMode: .common)
         codexTimer = t
-        pollCodexDrops()   // rollout truth lands before anything else runs
+        pollCodexDrops()  // rollout truth lands before anything else runs
     }
 
     private func pollCodexDrops() {
@@ -169,11 +170,12 @@ final class AppController: ObservableObject {
         var updates: [String: ClaudeHookMapper.Update] = [:]
         for drop in store.drops {
             guard let url = drop.target.contentURL,
-                  url.hasPrefix(CodexIntegration.sessionURLPrefix)
+                url.hasPrefix(CodexIntegration.sessionURLPrefix)
             else { continue }
             let sessionID = String(url.dropFirst(CodexIntegration.sessionURLPrefix.count))
             if updates[sessionID] == nil,
-               let fresh = codexIntegration.statusUpdate(forSessionID: sessionID) {
+                let fresh = codexIntegration.statusUpdate(forSessionID: sessionID)
+            {
                 updates[sessionID] = fresh
             }
             if let update = updates[sessionID] {
@@ -198,8 +200,8 @@ final class AppController: ObservableObject {
     private func handleClaudeHookEvent(_ event: ClaudeHookEvent) {
         HookDebugLog.log(
             "EVENT \(event.event) notif=\(event.notificationType ?? "-") "
-            + "permMode=\(event.permissionMode ?? "-") sid=\(event.sessionID.prefix(8)) "
-            + "tty=\(event.tty ?? "-") msg=\(event.message?.prefix(120) ?? "-")"
+                + "permMode=\(event.permissionMode ?? "-") sid=\(event.sessionID.prefix(8)) "
+                + "tty=\(event.tty ?? "-") msg=\(event.message?.prefix(120) ?? "-")"
         )
         guard let update = ClaudeHookMapper.update(for: event) else {
             HookDebugLog.log("  → unmapped, ignored")
@@ -208,13 +210,13 @@ final class AppController: ObservableObject {
         guard let (drop, label) = matchClaudeDrop(event) else {
             HookDebugLog.log(
                 "  → NO DROP MATCHED (would-be status=\(update.status?.rawValue ?? "keep") "
-                + "reason=\(update.reason))"
+                    + "reason=\(update.reason))"
             )
             return
         }
         HookDebugLog.log(
             "  → drop=\(drop.id.uuidString.prefix(8)) status=\(update.status?.rawValue ?? "keep") "
-            + "reason=\(update.reason)"
+                + "reason=\(update.reason)"
         )
         hookManagedDrops.insert(drop.id)
         // Every event supersedes a pending "waiting for permission" timer.
@@ -240,7 +242,9 @@ final class AppController: ObservableObject {
         // a few seconds as "needs you". Only bypassPermissions auto-runs every
         // tool; acceptEdits still prompts for Bash and friends, so it must arm.
         if event.event == "PreToolUse", Self.isPromptingMode(event.permissionMode) {
-            HookDebugLog.log("  → armed permission-stall (gen=\(generation)) for drop=\(drop.id.uuidString.prefix(8))")
+            HookDebugLog.log(
+                "  → armed permission-stall (gen=\(generation)) for drop=\(drop.id.uuidString.prefix(8))"
+            )
             armPermissionStall(dropID: drop.id, label: label, generation: generation)
         }
     }
@@ -252,7 +256,7 @@ final class AppController: ObservableObject {
     private static func isPromptingMode(_ mode: String?) -> Bool {
         switch mode {
         case "bypassPermissions": return false
-        default: return true   // "default" / "plan" / unspecified → prompts
+        default: return true  // "default" / "plan" / unspecified → prompts
         }
     }
 
@@ -262,14 +266,18 @@ final class AppController: ObservableObject {
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(5))
             guard let self,
-                  self.claudeToolGeneration[dropID] == generation,
-                  self.hookManagedDrops.contains(dropID),
-                  self.store.drop(id: dropID)?.status == .working
+                self.claudeToolGeneration[dropID] == generation,
+                self.hookManagedDrops.contains(dropID),
+                self.store.drop(id: dropID)?.status == .working
             else {
-                HookDebugLog.log("  → permission-stall (gen=\(generation)) superseded/skipped for drop=\(dropID.uuidString.prefix(8))")
+                HookDebugLog.log(
+                    "  → permission-stall (gen=\(generation)) superseded/skipped for drop=\(dropID.uuidString.prefix(8))"
+                )
                 return
             }
-            HookDebugLog.log("  → permission-stall FIRED → needsAttention for drop=\(dropID.uuidString.prefix(8))")
+            HookDebugLog.log(
+                "  → permission-stall FIRED → needsAttention for drop=\(dropID.uuidString.prefix(8))"
+            )
             self.store.updateStatusAndLabel(
                 id: dropID, to: .needsAttention, label: label,
                 reason: "Claude needs your permission"
@@ -281,10 +289,11 @@ final class AppController: ObservableObject {
     /// session id, or a terminal drop matched by the CLI's controlling TTY.
     private func matchClaudeDrop(_ event: ClaudeHookEvent) -> (drop: Drop, label: String?)? {
         if let session = claudeIntegration.localSession(forCLISessionID: event.sessionID),
-           let drop = store.drops.first(where: {
-               $0.target.bundleID == ClaudeDeepLink.bundleID
-                   && ($0.target.contentURL?.contains(session.sessionID) ?? false)
-           }) {
+            let drop = store.drops.first(where: {
+                $0.target.bundleID == ClaudeDeepLink.bundleID
+                    && ($0.target.contentURL?.contains(session.sessionID) ?? false)
+            })
+        {
             return (drop, session.title)
         }
         if let drop = terminalDrop(tty: event.tty) {
@@ -352,9 +361,9 @@ final class AppController: ObservableObject {
     private func backfillClaudeLabels() {
         for drop in store.drops where drop.target.bundleID == ClaudeDeepLink.bundleID {
             guard drop.label == drop.target.appName || drop.label == drop.target.windowTitle,
-                  let url = drop.target.contentURL,
-                  let title = claudeIntegration.sessionTitle(forContentURL: url),
-                  !title.isEmpty, title != drop.label
+                let url = drop.target.contentURL,
+                let title = claudeIntegration.sessionTitle(forContentURL: url),
+                !title.isEmpty, title != drop.label
             else { continue }
             store.updateLabel(id: drop.id, label: title)
         }
@@ -424,9 +433,10 @@ final class AppController: ObservableObject {
             guard let self, let current = self.store.drop(id: dropID) else { return }
             // Another command may have taken the terminal over meanwhile —
             // its `start` event clears the binding and renames the drop.
-            guard current.label.hasPrefix("Codex")
-                || current.target.contentURL?
-                    .hasPrefix(CodexIntegration.sessionURLPrefix) == true
+            guard
+                current.label.hasPrefix("Codex")
+                    || current.target.contentURL?
+                        .hasPrefix(CodexIntegration.sessionURLPrefix) == true
             else { return }
             if let id = self.codexIntegration.newestSessionID(modifiedAfter: startedAt) {
                 self.store.setContentURL(
@@ -501,9 +511,12 @@ final class AppController: ObservableObject {
         // Banners only exist at the notify level. Keep tracking statuses so a
         // later re-enable doesn't replay stale transitions, but show nothing.
         guard settings.alertLevel.showsBanner else {
-            lastAlertedStatus = Dictionary(drops.map { ($0.id, $0.status) }, uniquingKeysWith: { a, _ in a })
+            lastAlertedStatus = Dictionary(
+                drops.map { ($0.id, $0.status) }, uniquingKeysWith: { a, _ in a })
             if !alertBanners.isEmpty {
-                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) { alertBanners.removeAll() }
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.85)) {
+                    alertBanners.removeAll()
+                }
             }
             return
         }
@@ -598,7 +611,8 @@ final class AppController: ObservableObject {
         }
         observers.append(obs)
         if let app = NSWorkspace.shared.frontmostApplication,
-           app.bundleIdentifier != Bundle.main.bundleIdentifier {
+            app.bundleIdentifier != Bundle.main.bundleIdentifier
+        {
             lastForegroundApp = app
         }
     }
@@ -627,7 +641,10 @@ final class AppController: ObservableObject {
 
     private func targetApp() -> NSRunningApplication? {
         if let front = NSWorkspace.shared.frontmostApplication,
-           front.bundleIdentifier != Bundle.main.bundleIdentifier { return front }
+            front.bundleIdentifier != Bundle.main.bundleIdentifier
+        {
+            return front
+        }
         return lastForegroundApp
     }
 
@@ -696,8 +713,9 @@ final class AppController: ObservableObject {
         // the session whose rollout journal was written most recently (i.e.
         // the thread the user just prompted).
         if front.bundleID == CodexIntegration.bundleID,
-           settings.codexIntegrationEnabled,
-           let session = codexIntegration.currentSessionGuess() {
+            settings.codexIntegrationEnabled,
+            let session = codexIntegration.currentSessionGuess()
+        {
             contentURL = CodexIntegration.sessionURLPrefix + session.id
             threadLabel = session.title
         }
@@ -721,16 +739,16 @@ final class AppController: ObservableObject {
             if threadLabel?.isEmpty == true { threadLabel = nil }
         }
         let fallbackLabel = front.title.isEmpty ? front.appName : front.title
-        let label = threadLabel
+        let label =
+            threadLabel
             ?? contextAnchor.map { String($0.prefix(60)) }
             ?? fallbackLabel
-        let restoreMemoryID: UUID? = (
-            settings.rememberVisualState
+        let restoreMemoryID: UUID? =
+            (settings.rememberVisualState
                 && IntegrationRouter.allowsVisualRestore(
                     locator: locator,
                     bundleID: front.bundleID
-                )
-        ) ? UUID() : nil
+                )) ? UUID() : nil
         // Terminal drops start idle (gray): their state is unknown until a
         // shell/agent event arrives, and they're never AI-classified. Other
         // apps start optimistic (working) and the monitor refines them.
@@ -760,16 +778,16 @@ final class AppController: ObservableObject {
     /// before the drop existed). Derive the current state from the transcript.
     private func suggestClaudeStatusIfDesktop(for drop: Drop) {
         guard drop.target.bundleID == ClaudeDeepLink.bundleID,
-              let url = drop.target.contentURL,
-              let path = claudeIntegration.transcriptPath(forContentURL: url)
+            let url = drop.target.contentURL,
+            let path = claudeIntegration.transcriptPath(forContentURL: url)
         else { return }
         let key = settings.apiKey()
         Task { @MainActor [weak self] in
             guard let self,
-                  let result = await self.claudeIntegration.classifyTurnEnd(
-                      transcriptPath: path, apiKey: key
-                  ),
-                  self.store.drop(id: drop.id) != nil
+                let result = await self.claudeIntegration.classifyTurnEnd(
+                    transcriptPath: path, apiKey: key
+                ),
+                self.store.drop(id: drop.id) != nil
             else { return }
             self.store.updateStatus(id: drop.id, to: result.status, reason: result.reason)
         }
@@ -793,15 +811,15 @@ final class AppController: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             guard let path = await Self.claudeTranscriptOnTTY(tty),
-                  let result = await self.claudeIntegration.classifyTurnEnd(
-                      transcriptPath: path, apiKey: key
-                  ),
-                  // Never seed sticky `.working` cold — see adoptsColdStartSeed.
-                  ClaudeTerminalSession.adoptsColdStartSeed(result.status),
-                  let current = self.store.drop(id: drop.id),
-                  // A shell/agent hook event arriving first owns the drop.
-                  current.status == .unknown,
-                  !self.hookManagedDrops.contains(drop.id)
+                let result = await self.claudeIntegration.classifyTurnEnd(
+                    transcriptPath: path, apiKey: key
+                ),
+                // Never seed sticky `.working` cold — see adoptsColdStartSeed.
+                ClaudeTerminalSession.adoptsColdStartSeed(result.status),
+                let current = self.store.drop(id: drop.id),
+                // A shell/agent hook event arriving first owns the drop.
+                current.status == .unknown,
+                !self.hookManagedDrops.contains(drop.id)
             else { return }
             self.store.updateStatus(id: drop.id, to: result.status, reason: result.reason)
         }
@@ -814,20 +832,24 @@ final class AppController: ObservableObject {
         await Task.detached(priority: .utility) { () -> String? in
             let device = tty.hasPrefix("/dev/") ? String(tty.dropFirst(5)) : tty
             guard let psOut = runProcess("/bin/ps", ["-t", device, "-o", "pid=,ppid=,command="]),
-                  let pid = ClaudeTerminalSession.claudePID(psOutput: psOut),
-                  let cwd = processCWD(pid: pid)
+                let pid = ClaudeTerminalSession.claudePID(psOutput: psOut),
+                let cwd = processCWD(pid: pid)
             else { return nil }
             let dir = ClaudeTranscript.projectDirectory(
                 home: FileManager.default.homeDirectoryForCurrentUser, cwd: cwd
             )
             let fm = FileManager.default
-            guard let entries = try? fm.contentsOfDirectory(
-                at: dir, includingPropertiesForKeys: [.contentModificationDateKey]
-            ) else { return nil }
-            let candidates: [(url: URL, modified: Date)] = entries
+            guard
+                let entries = try? fm.contentsOfDirectory(
+                    at: dir, includingPropertiesForKeys: [.contentModificationDateKey]
+                )
+            else { return nil }
+            let candidates: [(url: URL, modified: Date)] =
+                entries
                 .filter { $0.pathExtension == "jsonl" }
                 .map { url in
-                    let date = (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
+                    let date =
+                        (try? url.resourceValues(forKeys: [.contentModificationDateKey]))?
                         .contentModificationDate ?? .distantPast
                     return (url: url, modified: date)
                 }
@@ -886,15 +908,15 @@ final class AppController: ObservableObject {
                 axText: snapshot.axText
             )
             guard let self,
-                  let verdict = try? await ClaudeClassifier(
-                      apiKey: key, model: ClassifierProtocolBuilder.defaultModel
-                  ).classify(input),
-                  let aiLabel = verdict.label, !aiLabel.isEmpty
+                let verdict = try? await ClaudeClassifier(
+                    apiKey: key, model: ClassifierProtocolBuilder.defaultModel
+                ).classify(input),
+                let aiLabel = verdict.label, !aiLabel.isEmpty
             else { return }
             // Only fill in the placeholder — don't overwrite a label a shell
             // or agent event set while the API call was in flight.
             guard let current = self.store.drop(id: drop.id),
-                  current.label == initialLabel
+                current.label == initialLabel
             else { return }
             self.store.updateLabel(id: drop.id, label: aiLabel)
         }

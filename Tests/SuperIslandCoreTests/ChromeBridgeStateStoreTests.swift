@@ -34,9 +34,10 @@ final class ChromeBridgeStateStoreTests: XCTestCase {
 
         let call = try JSONDecoder().decode(
             ChromeBridgeToolCall.self,
-            from: Data("""
-            {"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"chrome.get_tab_status","arguments":{"tabId":1234}}}
-            """.utf8)
+            from: Data(
+                """
+                {"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"chrome.get_tab_status","arguments":{"tabId":1234}}}
+                """.utf8)
         )
         let response = store.handleToolCall(call)
 
@@ -48,18 +49,21 @@ final class ChromeBridgeStateStoreTests: XCTestCase {
         let store = ChromeBridgeStateStore()
         let call = try JSONDecoder().decode(
             ChromeBridgeToolCall.self,
-            from: Data("""
-            {"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"chrome.refocus_tab","arguments":{"tabId":1234,"windowId":88}}}
-            """.utf8)
+            from: Data(
+                """
+                {"jsonrpc":"2.0","id":"1","method":"tools/call","params":{"name":"chrome.refocus_tab","arguments":{"tabId":1234,"windowId":88}}}
+                """.utf8)
         )
 
         let response = store.handleToolCall(call)
         let commands = store.consumeCommands()
 
         XCTAssertEqual(response.result?["queued"], .bool(true))
-        XCTAssertEqual(commands, [
-            ChromeBridgeCommand(type: "refocus_tab", tabID: 1234, windowID: 88),
-        ])
+        XCTAssertEqual(
+            commands,
+            [
+                ChromeBridgeCommand(type: "refocus_tab", tabID: 1234, windowID: 88)
+            ])
         XCTAssertTrue(store.consumeCommands().isEmpty)
     }
 }

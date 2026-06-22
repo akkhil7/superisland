@@ -13,7 +13,8 @@ public enum CodexHookMapper {
         case "Stop":
             return .init(status: .done, reason: "Codex finished — ready for you")
         case "PermissionRequest":
-            return .init(status: .needsAttention, reason: event.message ?? "Codex needs your approval")
+            return .init(
+                status: .needsAttention, reason: event.message ?? "Codex needs your approval")
         default:
             return nil
         }
@@ -67,10 +68,10 @@ public enum CodexRollout {
         var last: ClaudeHookMapper.Update?
         for line in tail.split(separator: "\n") {
             guard let data = line.data(using: .utf8),
-                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  obj["type"] as? String == "event_msg",
-                  let payload = obj["payload"] as? [String: Any],
-                  let kind = payload["type"] as? String
+                let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                obj["type"] as? String == "event_msg",
+                let payload = obj["payload"] as? [String: Any],
+                let kind = payload["type"] as? String
             else { continue }
 
             switch kind {
@@ -128,8 +129,8 @@ extension CodexRollout {
     public static func cwd(fromHead head: String) -> String? {
         for line in head.split(separator: "\n") {
             guard let data = line.data(using: .utf8),
-                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let payload = obj["payload"] as? [String: Any]
+                let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let payload = obj["payload"] as? [String: Any]
             else { continue }
             if let cwd = payload["cwd"] as? String, !cwd.isEmpty { return cwd }
         }
@@ -162,8 +163,8 @@ public enum CodexSessionIndex {
 
         for line in jsonl.split(separator: "\n") {
             guard let data = line.data(using: .utf8),
-                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let id = obj["id"] as? String
+                let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let id = obj["id"] as? String
             else { continue }
             let dateString = obj["updated_at"] as? String
             let date = dateString.flatMap { iso.date(from: $0) ?? isoPlain.date(from: $0) }

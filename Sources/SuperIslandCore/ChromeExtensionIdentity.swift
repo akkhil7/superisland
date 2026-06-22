@@ -9,8 +9,8 @@ import CryptoKit
 public enum ChromeExtensionIdentity {
     /// The base64 public key embedded in `Extensions/Chrome/manifest.json`.
     public static let manifestKey = """
-    MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnWzct1ORf26F7rMWXHE2LG3xnUCg3i4wTkpOhzC0Jj2Z9dQ6HI34HWWxkFayZJ68WfToO8Sal5ZezqYRXEF8YT+wd1Bqgx+2k+K6Vb7PbPIa31VxY4Uc4139i0MUXb0o62izjw46+QTmJaOUuCov0+8HDabHqTipR8TZ1Upu5jqLkesuAdCRGp/gAHn1nxUwbA+lapqe3dvDqxsdDs9WktXo+gZBw0s8T08lwx4a5UabxNl1NdBYl56jTXK1SMLX1bR+beMyUHlwGp4qflwDzuaH7+ZLzMd4Bq0bpkJGTAMIK4IciL421ay4aj9F4lXRE7PhFC0Dn1d7SR51prlPSQIDAQAB
-    """
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnWzct1ORf26F7rMWXHE2LG3xnUCg3i4wTkpOhzC0Jj2Z9dQ6HI34HWWxkFayZJ68WfToO8Sal5ZezqYRXEF8YT+wd1Bqgx+2k+K6Vb7PbPIa31VxY4Uc4139i0MUXb0o62izjw46+QTmJaOUuCov0+8HDabHqTipR8TZ1Upu5jqLkesuAdCRGp/gAHn1nxUwbA+lapqe3dvDqxsdDs9WktXo+gZBw0s8T08lwx4a5UabxNl1NdBYl56jTXK1SMLX1bR+beMyUHlwGp4qflwDzuaH7+ZLzMd4Bq0bpkJGTAMIK4IciL421ay4aj9F4lXRE7PhFC0Dn1d7SR51prlPSQIDAQAB
+        """
 
     /// The extension ID Chrome assigns for `manifestKey`.
     public static let extensionID = "nojmmgbfjaohlfclonopaeaenadfjeji"

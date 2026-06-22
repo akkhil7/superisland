@@ -3,9 +3,11 @@ import XCTest
 
 final class OnboardingFlowTests: XCTestCase {
     func testStepOrderMatchesTheJourney() {
-        XCTAssertEqual(OnboardingStep.allCases, [
-            .welcome, .accessibility, .integrations, .finish,
-        ])
+        XCTAssertEqual(
+            OnboardingStep.allCases,
+            [
+                .welcome, .accessibility, .integrations, .finish,
+            ])
     }
 
     func testEveryStepHasATitle() {

@@ -39,7 +39,7 @@ enum IslandTint {
     /// Brand purple (#7b39fc) — matches the website's working/primary color.
     static let working = Color(red: 0x7B / 255, green: 0x39 / 255, blue: 0xFC / 255)
     static let attention = Color(red: 0.95, green: 0.23, blue: 0.21)  // red
-    static let done = Color(red: 0.20, green: 0.85, blue: 0.40)     // green
+    static let done = Color(red: 0.20, green: 0.85, blue: 0.40)  // green
 
     /// Muted gray for states with no live signal (unknown / stale) — they must
     /// not borrow the vivid brand purple, which reads as "working".
@@ -61,7 +61,7 @@ enum IslandTint {
 struct NotchShape: Shape {
     // Tuned to Apple's notch proportions for the 32pt notch height.
     var bottomRadius: CGFloat = 11
-    var topRadius: CGFloat = 8   // the inverted top-corner radius
+    var topRadius: CGFloat = 8  // the inverted top-corner radius
 
     func path(in rect: CGRect) -> Path {
         let w = rect.width, h = rect.height
@@ -93,7 +93,7 @@ enum NotchMetrics {
         if let l = s.auxiliaryTopLeftArea, let r = s.auxiliaryTopRightArea {
             return max(120, r.minX - l.maxX)
         }
-        return 200   // no notch: a stylized central gap
+        return 200  // no notch: a stylized central gap
     }
     static var height: CGFloat {
         let inset = NSScreen.main?.safeAreaInsets.top ?? 0
@@ -220,7 +220,9 @@ struct DropRow: View {
         .padding(.horizontal, 10)
         .padding(.vertical, 8)
         .frame(width: 284)
-        .background(RoundedRectangle(cornerRadius: 10).fill(IslandTint.tint(drop.status).opacity(0.18)))
+        .background(
+            RoundedRectangle(cornerRadius: 10).fill(IslandTint.tint(drop.status).opacity(0.18))
+        )
         .contentShape(Rectangle())
         .onTapGesture { onClick() }
     }
@@ -310,7 +312,7 @@ struct IslandView: View {
     /// Reverts to nil while expanded so the drop list stays legible.
     private var notchTint: Color? {
         guard settings.alertLevel.showsColoredNotch,
-              !controller.islandExpanded
+            !controller.islandExpanded
         else { return nil }
         if !needsAttention.isEmpty { return IslandTint.attention }
         if !done.isEmpty { return IslandTint.done }
@@ -345,7 +347,11 @@ struct IslandView: View {
         .background(NotchPlate(tint: notchTint))
         .clipShape(NotchShape())
         .animation(.easeInOut(duration: 0.4), value: notchTint)
-        .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
+        .onGeometryChange(for: CGSize.self) {
+            $0.size
+        } action: {
+            onSize($0)
+        }
     }
 
     // Collapsed: count ······ notch gap ······ count, pushed to the extremes.
@@ -382,9 +388,10 @@ struct IslandView: View {
                 ScrollView(.vertical, showsIndicators: true) {
                     VStack(spacing: 5) {
                         ForEach(needsYou + inProgress) { drop in
-                            DropRow(drop: drop,
-                                    onClick: { controller.refocus(drop) },
-                                    onDismiss: { controller.dismiss(drop) })
+                            DropRow(
+                                drop: drop,
+                                onClick: { controller.refocus(drop) },
+                                onDismiss: { controller.dismiss(drop) })
                         }
                     }
                     .padding(.vertical, 8)
@@ -396,7 +403,9 @@ struct IslandView: View {
             Divider().overlay(.white.opacity(0.08))
 
             HStack {
-                Button { controller.createDrop() } label: {
+                Button {
+                    controller.createDrop()
+                } label: {
                     Label("Drop (⌥⌘K)", systemImage: "plus.circle.fill")
                         .font(.system(size: 11, weight: .medium))
                 }
@@ -530,7 +539,11 @@ struct AlertBannerBar: View {
                 }
             }
             .padding(.top, AlertBannerMetrics.topInset)
-            .onGeometryChange(for: CGSize.self) { $0.size } action: { onSize($0) }
+            .onGeometryChange(for: CGSize.self) {
+                $0.size
+            } action: {
+                onSize($0)
+            }
             Spacer(minLength: 0)
         }
         .frame(
@@ -591,9 +604,12 @@ struct MenuBarContent: View {
             }
 
             if permissionsBlocked {
-                Label("Permissions needed — open Settings", systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
+                Label(
+                    "Permissions needed — open Settings",
+                    systemImage: "exclamationmark.triangle.fill"
+                )
+                .font(.caption)
+                .foregroundStyle(.orange)
             }
 
             Divider()
@@ -616,8 +632,10 @@ struct MenuBarContent: View {
                         Button("Go") { controller.refocus(drop) }
                         Button {
                             controller.dismiss(drop)
-                        } label: { Image(systemName: "xmark") }
-                            .buttonStyle(.borderless)
+                        } label: {
+                            Image(systemName: "xmark")
+                        }
+                        .buttonStyle(.borderless)
                     }
                 }
             }
@@ -649,16 +667,21 @@ struct KeyRecorderField: View {
         HStack(spacing: 6) {
             ZStack {
                 RoundedRectangle(cornerRadius: 5)
-                    .stroke(isRecording ? Color.accentColor : Color.secondary.opacity(0.4), lineWidth: 1)
+                    .stroke(
+                        isRecording ? Color.accentColor : Color.secondary.opacity(0.4), lineWidth: 1
+                    )
                     .background(
                         RoundedRectangle(cornerRadius: 5)
                             .fill(Color(nsColor: .windowBackgroundColor))
                     )
-                Text(isRecording ? "Type shortcut…" : hotkeyLabel(keyCode: keyCode, modifiers: modifiers))
-                    .font(.system(size: 12, design: .monospaced))
-                    .foregroundStyle(isRecording ? .secondary : .primary)
-                    .padding(.horizontal, 10)
-                    .padding(.vertical, 4)
+                Text(
+                    isRecording
+                        ? "Type shortcut…" : hotkeyLabel(keyCode: keyCode, modifiers: modifiers)
+                )
+                .font(.system(size: 12, design: .monospaced))
+                .foregroundStyle(isRecording ? .secondary : .primary)
+                .padding(.horizontal, 10)
+                .padding(.vertical, 4)
             }
             .fixedSize()
             .onTapGesture { isRecording = true }
@@ -743,8 +766,8 @@ final class KeyCaptureNSView: NSView {
     private func carbonMods(from flags: NSEvent.ModifierFlags) -> Int {
         var m = 0
         if flags.contains(.command) { m |= cmdKey }
-        if flags.contains(.option)  { m |= optionKey }
-        if flags.contains(.shift)   { m |= shiftKey }
+        if flags.contains(.option) { m |= optionKey }
+        if flags.contains(.shift) { m |= shiftKey }
         if flags.contains(.control) { m |= controlKey }
         return m
     }
@@ -755,25 +778,25 @@ final class KeyCaptureNSView: NSView {
 private func hotkeyLabel(keyCode: Int, modifiers: Int) -> String {
     var s = ""
     if modifiers & controlKey != 0 { s += "⌃" }
-    if modifiers & optionKey  != 0 { s += "⌥" }
-    if modifiers & shiftKey   != 0 { s += "⇧" }
-    if modifiers & cmdKey     != 0 { s += "⌘" }
+    if modifiers & optionKey != 0 { s += "⌥" }
+    if modifiers & shiftKey != 0 { s += "⇧" }
+    if modifiers & cmdKey != 0 { s += "⌘" }
     s += keyCodeName(keyCode)
     return s
 }
 
 func keyCodeName(_ code: Int) -> String {
     let map: [Int: String] = [
-        0:"A",  1:"S",  2:"D",  3:"F",  4:"H",  5:"G",  6:"Z",  7:"X",
-        8:"C",  9:"V",  11:"B", 12:"Q", 13:"W", 14:"E", 15:"R",
-        16:"Y", 17:"T", 18:"1", 19:"2", 20:"3", 21:"4", 22:"6", 23:"5",
-        24:"=", 25:"9", 26:"7", 27:"-", 28:"8", 29:"0", 30:"]",
-        31:"O", 32:"U", 33:"[", 34:"I", 35:"P", 36:"↩",
-        37:"L", 38:"J", 39:"ʼ", 40:"K", 41:";", 42:"\\",
-        43:",",44:"/", 45:"N", 46:"M", 47:".",
-        48:"⇥", 49:"Space", 51:"⌫", 53:"⎋",
-        96:"F5",97:"F6",98:"F7",99:"F3",100:"F8",101:"F9",
-        103:"F11",109:"F10",111:"F12",118:"F4",120:"F2",122:"F1",
+        0: "A", 1: "S", 2: "D", 3: "F", 4: "H", 5: "G", 6: "Z", 7: "X",
+        8: "C", 9: "V", 11: "B", 12: "Q", 13: "W", 14: "E", 15: "R",
+        16: "Y", 17: "T", 18: "1", 19: "2", 20: "3", 21: "4", 22: "6", 23: "5",
+        24: "=", 25: "9", 26: "7", 27: "-", 28: "8", 29: "0", 30: "]",
+        31: "O", 32: "U", 33: "[", 34: "I", 35: "P", 36: "↩",
+        37: "L", 38: "J", 39: "ʼ", 40: "K", 41: ";", 42: "\\",
+        43: ",", 44: "/", 45: "N", 46: "M", 47: ".",
+        48: "⇥", 49: "Space", 51: "⌫", 53: "⎋",
+        96: "F5", 97: "F6", 98: "F7", 99: "F3", 100: "F8", 101: "F9",
+        103: "F11", 109: "F10", 111: "F12", 118: "F4", 120: "F2", 122: "F1",
     ]
     return map[code] ?? "?"
 }

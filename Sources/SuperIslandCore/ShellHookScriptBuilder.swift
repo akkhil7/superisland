@@ -6,8 +6,13 @@ public enum ShellHookScriptBuilder {
     }
 
     public static func zshScript(port: UInt16) -> String {
-        let start = sq("{\"event\":\"start\",\"tty\":\"") + dq("$__drop_tty") + sq("\",\"cmd\":\"") + dq("$__drop_cmd") + sq("\"}")
-        let done = sq("{\"event\":\"done\",\"tty\":\"") + dq("$__drop_tty") + sq("\",\"cmd\":\"") + dq("$__drop_cmd") + sq("\",\"exit_code\":") + dq("$code") + sq(",\"duration\":") + dq("$dur") + sq("}")
+        let start =
+            sq("{\"event\":\"start\",\"tty\":\"") + dq("$__drop_tty") + sq("\",\"cmd\":\"")
+            + dq("$__drop_cmd") + sq("\"}")
+        let done =
+            sq("{\"event\":\"done\",\"tty\":\"") + dq("$__drop_tty") + sq("\",\"cmd\":\"")
+            + dq("$__drop_cmd") + sq("\",\"exit_code\":") + dq("$code") + sq(",\"duration\":")
+            + dq("$dur") + sq("}")
         let reg = sq("{\"event\":\"register\",\"tty\":\"") + dq("$__drop_tty") + sq("\"}")
 
         let lines: [String] = [
@@ -55,8 +60,13 @@ public enum ShellHookScriptBuilder {
     }
 
     public static func bashScript(port: UInt16) -> String {
-        let start = sq("{\"event\":\"start\",\"tty\":\"") + dq("$__drop_tty") + sq("\",\"cmd\":\"") + dq("$__drop_cmd") + sq("\"}")
-        let done = sq("{\"event\":\"done\",\"tty\":\"") + dq("$__drop_tty") + sq("\",\"cmd\":\"") + dq("$__drop_cmd") + sq("\",\"exit_code\":") + dq("$code") + sq(",\"duration\":") + dq("$dur") + sq("}")
+        let start =
+            sq("{\"event\":\"start\",\"tty\":\"") + dq("$__drop_tty") + sq("\",\"cmd\":\"")
+            + dq("$__drop_cmd") + sq("\"}")
+        let done =
+            sq("{\"event\":\"done\",\"tty\":\"") + dq("$__drop_tty") + sq("\",\"cmd\":\"")
+            + dq("$__drop_cmd") + sq("\",\"exit_code\":") + dq("$code") + sq(",\"duration\":")
+            + dq("$dur") + sq("}")
         let reg = sq("{\"event\":\"register\",\"tty\":\"") + dq("$__drop_tty") + sq("\"}")
 
         let lines: [String] = [

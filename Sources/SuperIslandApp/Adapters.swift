@@ -71,21 +71,24 @@ struct GenericAXAdapter: AppAdapter {
             if let dropURL = target.contentURL {
                 // Already on the right in-app tab? (Electron route matches.)
                 if let currentURL = AX.webContentURL(of: window),
-                   ContentURL.matches(currentURL, dropURL) {
+                    ContentURL.matches(currentURL, dropURL)
+                {
                     return
                 }
                 // Claude Desktop handles claude:// deep links — navigate
                 // straight to the dropped session.
                 if target.bundleID == ClaudeDeepLink.bundleID,
-                   let link = ClaudeDeepLink.deepLink(forContentURL: dropURL),
-                   let url = URL(string: link) {
+                    let link = ClaudeDeepLink.deepLink(forContentURL: dropURL),
+                    let url = URL(string: link)
+                {
                     NSWorkspace.shared.open(url)
                     return
                 }
                 // Codex desktop: codex://threads/<id> opens the exact thread.
                 if target.bundleID == CodexDeepLink.bundleID,
-                   let link = CodexDeepLink.deepLink(forContentURL: dropURL),
-                   let url = URL(string: link) {
+                    let link = CodexDeepLink.deepLink(forContentURL: dropURL),
+                    let url = URL(string: link)
+                {
                     NSWorkspace.shared.open(url)
                     return
                 }
@@ -99,7 +102,7 @@ struct GenericAXAdapter: AppAdapter {
                 RestoreMatcher.labelsMatch($0.anchor.label, anchor)
             }
             guard let best = matches.first(where: { !$0.anchor.isSelected }) ?? matches.first,
-                  let element = best.element
+                let element = best.element
             else { return }
             AXUIElementPerformAction(element, kAXPressAction as CFString)
         }
@@ -119,13 +122,14 @@ struct ChromeAdapter: AppAdapter {
         // The bridge's "last active tab" can lag a fast tab switch, which used
         // to bind drops (and their refocus) to the wrong tab.
         let script = """
-        tell application "\(appName)"
-            set w to front window
-            set t to active tab of w
-            return ((id of t) as string) & "\\n" & (URL of t) & "\\n" & (title of t) & "\\n" & (active tab index of w)
-        end tell
-        """
-        let parts = (try? AppleScriptRunner.run(script))?
+            tell application "\(appName)"
+                set w to front window
+                set t to active tab of w
+                return ((id of t) as string) & "\\n" & (URL of t) & "\\n" & (title of t) & "\\n" & (active tab index of w)
+            end tell
+            """
+        let parts =
+            (try? AppleScriptRunner.run(script))?
             .components(separatedBy: "\n") ?? []
         if parts.count >= 4 {
             let appleScriptID = Int(parts[0])
@@ -169,7 +173,8 @@ struct ChromeAdapter: AppAdapter {
 
     @discardableResult
     func refocus(target: WindowTarget) -> Bool {
-        guard case let .chrome(windowID, _, tabIndex, tabID, url, title, _, _) = target.locator else {
+        guard case let .chrome(windowID, _, tabIndex, tabID, url, title, _, _) = target.locator
+        else {
             return false
         }
         // Bridge refocus needs an EXTENSION tab id. windowID != nil is the
@@ -189,26 +194,26 @@ struct ChromeAdapter: AppAdapter {
         if let title, !title.isEmpty { clauses.append("title of t is \"\(escape(title))\"") }
         let matchClause = clauses.isEmpty ? "false" : clauses.joined(separator: " or ")
         let script = """
-        tell application "\(appName)"
-            activate
-            repeat with w in windows
-                set i to 0
-                repeat with t in tabs of w
-                    set i to i + 1
-                    if \(matchClause) then
-                        set active tab index of w to i
-                        set index of w to 1
-                        return "ok"
-                    end if
+            tell application "\(appName)"
+                activate
+                repeat with w in windows
+                    set i to 0
+                    repeat with t in tabs of w
+                        set i to i + 1
+                        if \(matchClause) then
+                            set active tab index of w to i
+                            set index of w to 1
+                            return "ok"
+                        end if
+                    end repeat
                 end repeat
-            end repeat
-            -- fallback: select the captured tab index of the front window
-            try
-                set active tab index of front window to \(tabIndex)
-            end try
-            return "fallback"
-        end tell
-        """
+                -- fallback: select the captured tab index of the front window
+                try
+                    set active tab index of front window to \(tabIndex)
+                end try
+                return "fallback"
+            end tell
+            """
         let result = (try? AppleScriptRunner.run(script)) ?? ""
         return result == "ok" || result == "fallback"
     }
@@ -225,9 +230,10 @@ struct TerminalAdapter: AppAdapter {
     func canHandle(bundleID: String) -> Bool { bundleID == "com.apple.Terminal" }
 
     func captureLocator(front: FrontWindow) -> Locator {
-        let tty = (try? AppleScriptRunner.run(
-            "tell application \"Terminal\" to return tty of selected tab of front window"
-        ))?.trimmingCharacters(in: .whitespacesAndNewlines)
+        let tty =
+            (try? AppleScriptRunner.run(
+                "tell application \"Terminal\" to return tty of selected tab of front window"
+            ))?.trimmingCharacters(in: .whitespacesAndNewlines)
         // If shell integration is installed and we have a TTY, hand off to the
         // shell event pipeline for status updates + TTY-based refocus.
         if ShellIntegration.isScriptInstalled, let tty, !tty.isEmpty {
@@ -260,17 +266,18 @@ struct ITermAdapter: AppAdapter {
     func captureLocator(front: FrontWindow) -> Locator {
         // If shell integration is installed, capture the TTY for shell-event-driven updates.
         if ShellIntegration.isScriptInstalled {
-            let ttyScript = "tell application \(appRef) to return tty of current session of current tab of current window"
+            let ttyScript =
+                "tell application \(appRef) to return tty of current session of current tab of current window"
             let tty = (try? AppleScriptRunner.run(ttyScript))?
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             if let tty, !tty.isEmpty { return .shell(tty: tty) }
         }
         // Fall back to stable session UUID (iTerm2-specific).
         let script = """
-        tell application \(appRef)
-            return id of current session of current tab of current window
-        end tell
-        """
+            tell application \(appRef)
+                return id of current session of current tab of current window
+            end tell
+            """
         let sid = (try? AppleScriptRunner.run(script))?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         return .iterm(sessionID: (sid?.isEmpty == false) ? sid : nil)
@@ -287,23 +294,23 @@ struct ITermAdapter: AppAdapter {
             return false
         }
         let script = """
-        tell application \(appRef)
-            activate
-            repeat with w in windows
-                repeat with t in tabs of w
-                    repeat with s in sessions of t
-                        if (id of s) is "\(sid)" then
-                            select w
-                            select t
-                            select s
-                            return "ok"
-                        end if
+            tell application \(appRef)
+                activate
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        repeat with s in sessions of t
+                            if (id of s) is "\(sid)" then
+                                select w
+                                select t
+                                select s
+                                return "ok"
+                            end if
+                        end repeat
                     end repeat
                 end repeat
-            end repeat
-            return "miss"
-        end tell
-        """
+                return "miss"
+            end tell
+            """
         let result = (try? AppleScriptRunner.run(script)) ?? ""
         return result == "ok"
     }
@@ -325,8 +332,9 @@ struct EditorAdapter: AppAdapter {
 
     func captureLocator(front: FrontWindow) -> Locator {
         if ShellIntegration.isScriptInstalled,
-           AX.focusedElementLooksLikeTerminal(pid: front.pid),
-           let tty = Self.activeIntegratedTerminalTTY(appPID: front.pid) {
+            AX.focusedElementLooksLikeTerminal(pid: front.pid),
+            let tty = Self.activeIntegratedTerminalTTY(appPID: front.pid)
+        {
             return .shell(tty: tty)
         }
         let parsed = EditorWindowTitle.parse(front.title)
@@ -350,7 +358,8 @@ struct EditorAdapter: AppAdapter {
             let appElement = AXUIElementCreateApplication(target.pid)
             for w in AX.elementsAttribute(appElement, kAXWindowsAttribute as String)
             where AX.stringAttribute(w, kAXTitleAttribute as String)?
-                .contains(workspaceName) == true {
+                .contains(workspaceName) == true
+            {
                 raised = AX.raise(window: w, pid: target.pid)
                 break
             }
@@ -362,9 +371,10 @@ struct EditorAdapter: AppAdapter {
         // 2. Re-select the exact file: opening it routes to the window that
         //    has it (the one we just raised) and focuses its editor tab.
         if let filePath, FileManager.default.fileExists(atPath: filePath),
-           let appURL = NSWorkspace.shared.urlForApplication(
-               withBundleIdentifier: target.bundleID
-           ) {
+            let appURL = NSWorkspace.shared.urlForApplication(
+                withBundleIdentifier: target.bundleID
+            )
+        {
             NSWorkspace.shared.open(
                 [URL(fileURLWithPath: filePath)],
                 withApplicationAt: appURL,
@@ -437,47 +447,48 @@ struct ShellAdapter: AppAdapter {
         // raised the wrong terminal app whenever its search missed (a drop
         // saved in iTerm could end up opening Terminal.app).
         let iterm = """
-        tell application id "com.googlecode.iterm2"
-            repeat with w in windows
-                repeat with t in tabs of w
-                    repeat with s in sessions of t
-                        if tty of s is "\(escaped)" then
-                            select w
-                            select t
-                            select s
+            tell application id "com.googlecode.iterm2"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        repeat with s in sessions of t
+                            if tty of s is "\(escaped)" then
+                                select w
+                                select t
+                                select s
+                                activate
+                                return "ok"
+                            end if
+                        end repeat
+                    end repeat
+                end repeat
+                return "miss"
+            end tell
+            """
+        if (try? AppleScriptRunner.run(iterm)) == "ok" { return true }
+
+        let terminal = """
+            tell application "Terminal"
+                repeat with w in windows
+                    repeat with t in tabs of w
+                        if tty of t is "\(escaped)" then
+                            set selected of t to true
+                            set frontmost of w to true
                             activate
                             return "ok"
                         end if
                     end repeat
                 end repeat
-            end repeat
-            return "miss"
-        end tell
-        """
-        if (try? AppleScriptRunner.run(iterm)) == "ok" { return true }
-
-        let terminal = """
-        tell application "Terminal"
-            repeat with w in windows
-                repeat with t in tabs of w
-                    if tty of t is "\(escaped)" then
-                        set selected of t to true
-                        set frontmost of w to true
-                        activate
-                        return "ok"
-                    end if
-                end repeat
-            end repeat
-            return "miss"
-        end tell
-        """
+                return "miss"
+            end tell
+            """
         if (try? AppleScriptRunner.run(terminal)) == "ok" { return true }
 
         // Last resort: raise by CGWindowID if the window is still open.
         if let window = WindowFinder.axWindow(pid: target.pid, windowID: target.windowID) {
             return AX.raise(window: window, pid: target.pid)
         }
-        NSRunningApplication(processIdentifier: target.pid)?.activate(options: [.activateAllWindows])
+        NSRunningApplication(processIdentifier: target.pid)?.activate(options: [.activateAllWindows]
+        )
         return false
     }
 }

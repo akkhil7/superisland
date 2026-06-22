@@ -123,8 +123,9 @@ final class SuperIslandMonitor: ObservableObject {
                 // area, and it changes per internal tab (Claude Desktop,
                 // Codex, …).
                 if let dropURL = target.contentURL,
-                   let currentURL = AX.webContentURL(of: axWindow),
-                   !ContentURL.matches(currentURL, dropURL) {
+                    let currentURL = AX.webContentURL(of: axWindow),
+                    !ContentURL.matches(currentURL, dropURL)
+                {
                     store.noteReason(id: id, reason: "In a background tab — click to switch back")
                     scheduleNextCheck()
                     return
@@ -133,8 +134,10 @@ final class SuperIslandMonitor: ObservableObject {
                 if target.contentURL == nil, let anchor = target.contextAnchor {
                     let selected = RestoreAnchorCollector.selectedLabels(from: axWindow)
                     if !selected.isEmpty,
-                       !selected.contains(where: { RestoreMatcher.labelsMatch($0, anchor) }) {
-                        store.noteReason(id: id, reason: "In a background tab — click to switch back")
+                        !selected.contains(where: { RestoreMatcher.labelsMatch($0, anchor) })
+                    {
+                        store.noteReason(
+                            id: id, reason: "In a background tab — click to switch back")
                         scheduleNextCheck()
                         return
                     }
@@ -182,7 +185,7 @@ final class SuperIslandMonitor: ObservableObject {
                 // An event source may have claimed this drop while the API
                 // call was in flight — its truth beats our guess.
                 guard let current = store.drop(id: id),
-                      isExternallyManaged?(current) != true
+                    isExternallyManaged?(current) != true
                 else { return }
                 store.updateStatusAndLabel(
                     id: id, to: verdict.status, label: verdict.label, reason: verdict.reason

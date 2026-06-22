@@ -26,12 +26,13 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
                 .padding(.horizontal, 52)
                 .padding(.top, 30)
-                .clipped()   // content may never push the nav rail out
+                .clipped()  // content may never push the nav rail out
                 .id(index)
-                .transition(.asymmetric(
-                    insertion: .opacity.combined(with: .offset(x: 28)),
-                    removal: .opacity.combined(with: .offset(x: -28))
-                ))
+                .transition(
+                    .asymmetric(
+                        insertion: .opacity.combined(with: .offset(x: 28)),
+                        removal: .opacity.combined(with: .offset(x: -28))
+                    ))
             navigation
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -105,11 +106,13 @@ private struct WelcomeStepView: View {
                 + Text(" again").font(.system(size: 36, weight: .bold)))
                 .foregroundStyle(OnboardingTheme.heading)
                 .multilineTextAlignment(.center)
-            Text("SuperIsland watches your long-running work and pulls you back the moment it needs you.")
-                .font(.system(size: 13))
-                .foregroundStyle(OnboardingTheme.body)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 400)
+            Text(
+                "SuperIsland watches your long-running work and pulls you back the moment it needs you."
+            )
+            .font(.system(size: 13))
+            .foregroundStyle(OnboardingTheme.body)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 400)
         }
         .frame(maxWidth: .infinity)
     }
@@ -152,10 +155,12 @@ private struct AccessibilityStepView: View {
                 Button {
                     permissions.resetStaleGrant(service: "Accessibility")
                 } label: {
-                    Label("Already ON in System Settings? Reset & re-prompt.",
-                          systemImage: "arrow.counterclockwise")
-                        .font(.system(size: 11))
-                        .foregroundStyle(OnboardingTheme.lavender)
+                    Label(
+                        "Already ON in System Settings? Reset & re-prompt.",
+                        systemImage: "arrow.counterclockwise"
+                    )
+                    .font(.system(size: 11))
+                    .foregroundStyle(OnboardingTheme.lavender)
                 }
                 .buttonStyle(.plain)
             }
@@ -189,8 +194,11 @@ private struct IntegrationsStepView: View {
                 ) {
                     statusChip(active: shellIntegration.isInstalled)
                     installToggle(isOn: shellIntegration.isInstalled) { on in
-                        if on { try shellIntegration.install() }
-                        else { shellIntegration.uninstall() }
+                        if on {
+                            try shellIntegration.install()
+                        } else {
+                            shellIntegration.uninstall()
+                        }
                     }
                 }
 
@@ -201,8 +209,11 @@ private struct IntegrationsStepView: View {
                 ) {
                     statusChip(active: claudeIntegration.isInstalled)
                     installToggle(isOn: claudeIntegration.isInstalled) { on in
-                        if on { try claudeIntegration.install() }
-                        else { claudeIntegration.uninstall() }
+                        if on {
+                            try claudeIntegration.install()
+                        } else {
+                            claudeIntegration.uninstall()
+                        }
                     }
                 }
 
@@ -222,11 +233,15 @@ private struct IntegrationsStepView: View {
                     icon: "globe", name: "Chrome",
                     caption: chromeCaption
                 ) {
-                    statusChip(active: chromeIntegration.isNativeHostInstalled
-                               && chromeIntegration.isExtensionLoaded)
+                    statusChip(
+                        active: chromeIntegration.isNativeHostInstalled
+                            && chromeIntegration.isExtensionLoaded)
                     installToggle(isOn: chromeIntegration.isNativeHostInstalled) { on in
-                        if on { try chromeIntegration.setUp() }
-                        else { chromeIntegration.uninstallNativeHost() }
+                        if on {
+                            try chromeIntegration.setUp()
+                        } else {
+                            chromeIntegration.uninstallNativeHost()
+                        }
                     }
                 }
             }
@@ -263,13 +278,17 @@ private struct IntegrationsStepView: View {
     private func installToggle(
         isOn: Bool, perform: @escaping (Bool) throws -> Void
     ) -> some View {
-        Toggle("", isOn: Binding(
-            get: { isOn },
-            set: { on in
-                do { try perform(on); error = nil }
-                catch { self.error = error.localizedDescription }
-            }
-        ))
+        Toggle(
+            "",
+            isOn: Binding(
+                get: { isOn },
+                set: { on in
+                    do { try perform(on); error = nil } catch {
+                        self.error = error.localizedDescription
+                    }
+                }
+            )
+        )
         .labelsHidden()
         .toggleStyle(PurpleSwitchToggleStyle())
     }
@@ -328,11 +347,13 @@ private struct FinishStepView: View {
             HStack(spacing: 10) {
                 ForEach(keycaps, id: \.self) { Keycap(symbol: $0) }
             }
-            Text("Press it on any window with work in progress. The island by the notch takes it from there.")
-                .font(.system(size: 13))
-                .foregroundStyle(OnboardingTheme.body)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 380)
+            Text(
+                "Press it on any window with work in progress. The island by the notch takes it from there."
+            )
+            .font(.system(size: 13))
+            .foregroundStyle(OnboardingTheme.body)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: 380)
         }
         .frame(maxWidth: .infinity)
     }
@@ -343,7 +364,7 @@ private struct FinishStepView: View {
 private struct StepTitle: View {
     let plain: String
     let accent: String
-    var subtitle: String? = nil
+    var subtitle: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 6) {

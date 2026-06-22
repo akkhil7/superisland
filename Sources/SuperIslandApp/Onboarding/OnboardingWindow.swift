@@ -43,11 +43,13 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             .environmentObject(controller.chromeIntegration)
             .environmentObject(controller.codexIntegration)
 
-        let hosting = NSHostingView(rootView: AnyView(
-            root
-                .frame(width: 760, height: 560)   // NSHostingView resizes borderless windows to intrinsic size — pin it
-                .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
-        ))
+        let hosting = NSHostingView(
+            rootView: AnyView(
+                root
+                    // NSHostingView resizes borderless windows to intrinsic size — pin it
+                    .frame(width: 760, height: 560)
+                    .clipShape(RoundedRectangle(cornerRadius: 16, style: .continuous))
+            ))
 
         let panel = OnboardingPanel(
             contentRect: NSRect(x: 0, y: 0, width: 760, height: 560),
@@ -79,7 +81,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
     }
 
     func windowWillClose(_ notification: Notification) {
-        markCompleted()   // closing = done; no nagging on next launch
+        markCompleted()  // closing = done; no nagging on next launch
         window = nil
     }
 

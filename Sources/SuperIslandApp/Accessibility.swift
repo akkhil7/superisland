@@ -5,7 +5,9 @@ import ApplicationServices
 // stable; lets us tie a drop to an exact window. If it ever fails we fall back
 // to matching via CGWindowList.
 @_silgen_name("_AXUIElementGetWindow")
-private func _AXUIElementGetWindow(_ element: AXUIElement, _ identifier: UnsafeMutablePointer<CGWindowID>) -> AXError
+private func _AXUIElementGetWindow(
+    _ element: AXUIElement, _ identifier: UnsafeMutablePointer<CGWindowID>
+) -> AXError
 
 /// Thin conveniences over the C Accessibility API.
 enum AX {
@@ -56,10 +58,13 @@ enum AX {
             guard depth < 30, nodeBudget > 0 else { return }
             nodeBudget -= 1
             if stringAttribute(element, kAXRoleAttribute as String) == "AXWebArea",
-               let raw = attribute(element, "AXURL"),
-               let url = (raw as? URL)?.absoluteString ?? (raw as? String),
-               !url.isEmpty {
-                if best == nil || depth > best!.depth || (depth == best!.depth && !url.hasPrefix("file:")) {
+                let raw = attribute(element, "AXURL"),
+                let url = (raw as? URL)?.absoluteString ?? (raw as? String),
+                !url.isEmpty
+            {
+                if best == nil || depth > best!.depth
+                    || (depth == best!.depth && !url.hasPrefix("file:"))
+                {
                     best = (depth, url)
                 }
             }
@@ -77,7 +82,7 @@ enum AX {
     /// file, which gives an exact "right file" locator with zero setup.
     static func documentPath(of window: AXUIElement) -> String? {
         guard let raw = stringAttribute(window, kAXDocumentAttribute as String),
-              !raw.isEmpty
+            !raw.isEmpty
         else { return nil }
         if raw.hasPrefix("file://"), let url = URL(string: raw) { return url.path }
         return raw
@@ -143,12 +148,15 @@ enum WindowFinder {
         let appElement = AXUIElementCreateApplication(pid)
 
         // Prefer the app's focused window; fall back to its first window.
-        let window = AX.elementAttribute(appElement, kAXFocusedWindowAttribute as String)
+        let window =
+            AX.elementAttribute(appElement, kAXFocusedWindowAttribute as String)
             ?? AX.elementsAttribute(appElement, kAXWindowsAttribute as String).first
         guard let window else { return nil }
 
-        let title = AX.stringAttribute(window, kAXTitleAttribute as String) ?? app.localizedName ?? "Window"
-        let windowID = AX.windowID(of: window)
+        let title =
+            AX.stringAttribute(window, kAXTitleAttribute as String) ?? app.localizedName ?? "Window"
+        let windowID =
+            AX.windowID(of: window)
             ?? CGWindowID(frontmostWindowID(forPID: pid) ?? 0)
 
         return FrontWindow(

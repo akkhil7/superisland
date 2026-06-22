@@ -31,7 +31,8 @@ public enum ClaudeTranscript {
     /// CLI session id isn't known (no hook has fired yet).
     public static func projectDirectory(home: URL, cwd: String) -> URL {
         let encoded = String(cwd.map { ($0 == "/" || $0 == ".") ? "-" : $0 })
-        return home
+        return
+            home
             .appendingPathComponent(".claude/projects", isDirectory: true)
             .appendingPathComponent(encoded, isDirectory: true)
     }
@@ -49,9 +50,9 @@ public enum ClaudeTranscript {
         for line in tail.split(separator: "\n") {
             defer { index += 1 }
             guard let data = line.data(using: .utf8),
-                  let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                  let message = obj["message"] as? [String: Any],
-                  let role = message["role"] as? String
+                let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+                let message = obj["message"] as? [String: Any],
+                let role = message["role"] as? String
             else { continue }
 
             let blocks = (message["content"] as? [[String: Any]]) ?? []
@@ -63,7 +64,8 @@ public enum ClaudeTranscript {
                     lastToolResultIndex = index
                 case "text" where role == "assistant":
                     if let t = (block["text"] as? String)?
-                        .trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty {
+                        .trimmingCharacters(in: .whitespacesAndNewlines), !t.isEmpty
+                    {
                         lastAssistantText = t
                     }
                 default:

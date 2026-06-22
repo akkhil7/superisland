@@ -52,8 +52,8 @@ final class ClassifierTests: XCTestCase {
 
     func testParsesCleanJSONResponse() throws {
         let json = """
-        {"content":[{"type":"text","text":"{\\"status\\":\\"done\\",\\"reason\\":\\"prompt returned\\",\\"confidence\\":0.9}"}]}
-        """
+            {"content":[{"type":"text","text":"{\\"status\\":\\"done\\",\\"reason\\":\\"prompt returned\\",\\"confidence\\":0.9}"}]}
+            """
         let c = try ClassifierProtocolBuilder.parse(responseData: Data(json.utf8))
         XCTAssertEqual(c.status, .done)
         XCTAssertEqual(c.reason, "prompt returned")
@@ -61,10 +61,11 @@ final class ClassifierTests: XCTestCase {
     }
 
     func testParsesJSONWrappedInProseAndFences() throws {
-        let inner = "Here is my analysis:\\n```json\\n{\\\"status\\\": \\\"needsAttention\\\", \\\"reason\\\": \\\"asks for password\\\", \\\"confidence\\\": 0.8}\\n```"
+        let inner =
+            "Here is my analysis:\\n```json\\n{\\\"status\\\": \\\"needsAttention\\\", \\\"reason\\\": \\\"asks for password\\\", \\\"confidence\\\": 0.8}\\n```"
         let json = """
-        {"content":[{"type":"text","text":"\(inner)"}]}
-        """
+            {"content":[{"type":"text","text":"\(inner)"}]}
+            """
         let c = try ClassifierProtocolBuilder.parse(responseData: Data(json.utf8))
         XCTAssertEqual(c.status, .needsAttention)
         XCTAssertEqual(c.reason, "asks for password")
@@ -72,8 +73,8 @@ final class ClassifierTests: XCTestCase {
 
     func testUnknownStatusStringFallsBackToUnknown() throws {
         let json = """
-        {"content":[{"type":"text","text":"{\\"status\\":\\"banana\\",\\"reason\\":\\"\\",\\"confidence\\":0.1}"}]}
-        """
+            {"content":[{"type":"text","text":"{\\"status\\":\\"banana\\",\\"reason\\":\\"\\",\\"confidence\\":0.1}"}]}
+            """
         let c = try ClassifierProtocolBuilder.parse(responseData: Data(json.utf8))
         XCTAssertEqual(c.status, .unknown)
     }

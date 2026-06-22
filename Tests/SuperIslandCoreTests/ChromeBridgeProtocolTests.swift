@@ -4,19 +4,19 @@ import XCTest
 final class ChromeBridgeProtocolTests: XCTestCase {
     func testDecodesToolCallRequest() throws {
         let json = """
-        {
-          "jsonrpc": "2.0",
-          "id": "call-1",
-          "method": "tools/call",
-          "params": {
-            "name": "chrome.refocus_tab",
-            "arguments": {
-              "tabId": 1234,
-              "windowId": 88
+            {
+              "jsonrpc": "2.0",
+              "id": "call-1",
+              "method": "tools/call",
+              "params": {
+                "name": "chrome.refocus_tab",
+                "arguments": {
+                  "tabId": 1234,
+                  "windowId": 88
+                }
+              }
             }
-          }
-        }
-        """
+            """
 
         let request = try JSONDecoder().decode(
             ChromeBridgeToolCall.self,
@@ -49,24 +49,24 @@ final class ChromeBridgeProtocolTests: XCTestCase {
 
     func testDecodesExtensionTabStateEvent() throws {
         let json = """
-        {
-          "type": "tab_state",
-          "tab": {
-            "tabId": 1234,
-            "windowId": 88,
-            "index": 2,
-            "url": "https://claude.ai/chat",
-            "title": "Claude",
-            "documentId": "doc-1",
-            "status": "needsAttention"
-          },
-          "domSummary": {
-            "title": "Claude",
-            "text": "Done running task",
-            "taskState": "done"
-          }
-        }
-        """
+            {
+              "type": "tab_state",
+              "tab": {
+                "tabId": 1234,
+                "windowId": 88,
+                "index": 2,
+                "url": "https://claude.ai/chat",
+                "title": "Claude",
+                "documentId": "doc-1",
+                "status": "needsAttention"
+              },
+              "domSummary": {
+                "title": "Claude",
+                "text": "Done running task",
+                "taskState": "done"
+              }
+            }
+            """
 
         let event = try JSONDecoder().decode(
             ChromeBridgeExtensionEvent.self,

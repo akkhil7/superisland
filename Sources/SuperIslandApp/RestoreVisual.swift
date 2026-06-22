@@ -61,7 +61,8 @@ enum RestoreAnchorCollector {
                             role: role,
                             label: label,
                             frame: normalize(rect, in: windowFrame),
-                            isSelected: boolAttribute(element, kAXSelectedAttribute as String) ?? false
+                            isSelected: boolAttribute(element, kAXSelectedAttribute as String)
+                                ?? false
                         ),
                         element: element,
                         absoluteFrame: rect
@@ -80,16 +81,17 @@ enum RestoreAnchorCollector {
 
     static func ocrAnchors(from png: Data?) async -> [CollectedRestoreAnchor] {
         guard let png,
-              let source = CGImageSourceCreateWithData(png as CFData, nil),
-              let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
+            let source = CGImageSourceCreateWithData(png as CFData, nil),
+            let image = CGImageSourceCreateImageAtIndex(source, 0, nil)
         else { return [] }
 
         return await withCheckedContinuation { continuation in
             let request = VNRecognizeTextRequest { request, _ in
                 let observations = (request.results as? [VNRecognizedTextObservation]) ?? []
-                let anchors = observations.enumerated().compactMap { idx, observation -> CollectedRestoreAnchor? in
+                let anchors = observations.enumerated().compactMap {
+                    idx, observation -> CollectedRestoreAnchor? in
                     guard let text = observation.topCandidates(1).first?.string,
-                          text.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
+                        text.trimmingCharacters(in: .whitespacesAndNewlines).count >= 2
                     else { return nil }
                     let box = observation.boundingBox
                     return CollectedRestoreAnchor(
@@ -121,7 +123,8 @@ enum RestoreAnchorCollector {
         }
     }
 
-    static func normalize(_ rect: CGRect, in windowFrame: CGRect) -> SuperIslandCore.NormalizedRect {
+    static func normalize(_ rect: CGRect, in windowFrame: CGRect) -> SuperIslandCore.NormalizedRect
+    {
         guard windowFrame.width > 0, windowFrame.height > 0 else {
             return SuperIslandCore.NormalizedRect(x: 0, y: 0, width: 0, height: 0)
         }
@@ -133,7 +136,9 @@ enum RestoreAnchorCollector {
         )
     }
 
-    static func denormalize(_ rect: SuperIslandCore.NormalizedRect, in windowFrame: CGRect) -> CGRect {
+    static func denormalize(_ rect: SuperIslandCore.NormalizedRect, in windowFrame: CGRect)
+        -> CGRect
+    {
         CGRect(
             x: windowFrame.minX + CGFloat(rect.x) * windowFrame.width,
             y: windowFrame.minY + CGFloat(rect.y) * windowFrame.height,
@@ -144,7 +149,7 @@ enum RestoreAnchorCollector {
 
     static func frame(of element: AXUIElement) -> CGRect? {
         guard let positionValue = AX.attribute(element, kAXPositionAttribute as String),
-              let sizeValue = AX.attribute(element, kAXSizeAttribute as String)
+            let sizeValue = AX.attribute(element, kAXSizeAttribute as String)
         else { return nil }
 
         var point = CGPoint.zero
@@ -198,13 +203,15 @@ final class RestoreMemoryStore {
         if let directory {
             self.directory = directory
         } else {
-            let base = (try? FileManager.default.url(
-                for: .applicationSupportDirectory,
-                in: .userDomainMask,
-                appropriateFor: nil,
-                create: true
-            )) ?? FileManager.default.temporaryDirectory
-            self.directory = base
+            let base =
+                (try? FileManager.default.url(
+                    for: .applicationSupportDirectory,
+                    in: .userDomainMask,
+                    appropriateFor: nil,
+                    create: true
+                )) ?? FileManager.default.temporaryDirectory
+            self.directory =
+                base
                 .appendingPathComponent("SuperIsland", isDirectory: true)
                 .appendingPathComponent("RestoreMemory", isDirectory: true)
         }
@@ -271,11 +278,14 @@ final class RestoreGuidanceManager {
     }
 
     func captureMemory(id: UUID, target: WindowTarget) async {
-        guard IntegrationRouter.allowsVisualRestore(
-            locator: target.locator,
-            bundleID: target.bundleID
-        ) else { return }
-        guard let axWindow = WindowFinder.axWindow(pid: target.pid, windowID: target.windowID) else {
+        guard
+            IntegrationRouter.allowsVisualRestore(
+                locator: target.locator,
+                bundleID: target.bundleID
+            )
+        else { return }
+        guard let axWindow = WindowFinder.axWindow(pid: target.pid, windowID: target.windowID)
+        else {
             return
         }
 
@@ -302,15 +312,15 @@ final class RestoreGuidanceManager {
 
     func suggestRestore(for drop: Drop) async {
         guard let id = drop.restoreMemoryID,
-              IntegrationRouter.allowsVisualRestore(
+            IntegrationRouter.allowsVisualRestore(
                 locator: drop.target.locator,
                 bundleID: drop.target.bundleID
-              ),
-              let envelope = try? store.load(id: id),
-              let axWindow = WindowFinder.axWindow(
+            ),
+            let envelope = try? store.load(id: id),
+            let axWindow = WindowFinder.axWindow(
                 pid: drop.target.pid,
                 windowID: drop.target.windowID
-              )
+            )
         else { return }
 
         let snapshot = await CaptureService.snapshot(
@@ -323,23 +333,29 @@ final class RestoreGuidanceManager {
         let axAnchors = RestoreAnchorCollector.collect(from: axWindow)
         let ocrAnchors = await RestoreAnchorCollector.ocrAnchors(from: snapshot.screenshotPNG)
         let current = axAnchors + ocrAnchors
-        guard let suggestion = RestoreMatcher.suggest(
-            remembered: envelope.memory.anchors,
-            current: current.map(\.anchor)
-        ) else { return }
+        guard
+            let suggestion = RestoreMatcher.suggest(
+                remembered: envelope.memory.anchors,
+                current: current.map(\.anchor)
+            )
+        else { return }
 
-        let windowFrame = RestoreAnchorCollector.frame(of: axWindow) ?? NSScreen.main?.frame ?? .zero
+        let windowFrame =
+            RestoreAnchorCollector.frame(of: axWindow) ?? NSScreen.main?.frame ?? .zero
         guard let match = current.first(where: { $0.anchor.id == suggestion.targetAnchorID }) else {
             return
         }
-        let frame = match.absoluteFrame ?? RestoreAnchorCollector.denormalize(suggestion.frame, in: windowFrame)
+        let frame =
+            match.absoluteFrame
+            ?? RestoreAnchorCollector.denormalize(suggestion.frame, in: windowFrame)
         // Close any previous suggestion first — dropping the reference without
         // closing leaks an undismissable panel that keeps blocking clicks.
         overlay?.dismiss()
         let controller = RestoreSuggestionOverlayController()
         controller.show(frame: frame, label: match.anchor.label) {
             if let element = match.element,
-               AXUIElementPerformAction(element, kAXPressAction as CFString) == .success {
+                AXUIElementPerformAction(element, kAXPressAction as CFString) == .success
+            {
                 return
             }
             Self.click(frame.center)

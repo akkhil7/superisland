@@ -3,11 +3,13 @@ import XCTest
 
 final class ShellHookScriptSyntaxIntegrationTests: XCTestCase {
     func testGeneratedZshScriptPassesShellSyntaxCheck() throws {
-        try assertShellAccepts(script: ShellHookScriptBuilder.zshScript(port: 2929), shell: "/bin/zsh")
+        try assertShellAccepts(
+            script: ShellHookScriptBuilder.zshScript(port: 2929), shell: "/bin/zsh")
     }
 
     func testGeneratedBashScriptPassesShellSyntaxCheck() throws {
-        try assertShellAccepts(script: ShellHookScriptBuilder.bashScript(port: 2929), shell: "/bin/bash")
+        try assertShellAccepts(
+            script: ShellHookScriptBuilder.bashScript(port: 2929), shell: "/bin/bash")
     }
 
     private func assertShellAccepts(script: String, shell: String) throws {
@@ -24,7 +26,8 @@ final class ShellHookScriptSyntaxIntegrationTests: XCTestCase {
         try process.run()
         process.waitUntilExit()
 
-        let error = String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
+        let error =
+            String(data: pipe.fileHandleForReading.readDataToEndOfFile(), encoding: .utf8) ?? ""
         XCTAssertEqual(process.terminationStatus, 0, error)
     }
 }

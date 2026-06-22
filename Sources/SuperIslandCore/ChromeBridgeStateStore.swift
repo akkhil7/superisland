@@ -63,7 +63,8 @@ public final class ChromeBridgeStateStore: @unchecked Sendable {
         // fast tab switches) — only trust it when it agrees with the window
         // title the drop was dropped on.
         if let id = lastActiveTabID, let tab = tabs[id],
-           title.isEmpty || titleMatches(tab, windowTitle: title) {
+            title.isEmpty || titleMatches(tab, windowTitle: title)
+        {
             return tab
         }
         guard !title.isEmpty else { return tabs.values.first }
@@ -75,7 +76,8 @@ public final class ChromeBridgeStateStore: @unchecked Sendable {
     /// DIFFERENT id spaces — AppleScript tab ids never equal extension ids).
     public func tab(matchingURL url: String?, orTitle title: String?) -> ChromeTabState? {
         if let url, !url.isEmpty,
-           let hit = tabs.values.first(where: { $0.url == url }) {
+            let hit = tabs.values.first(where: { $0.url == url })
+        {
             return hit
         }
         if let title, !title.isEmpty {
@@ -120,25 +122,29 @@ public final class ChromeBridgeStateStore: @unchecked Sendable {
             guard let tab = bestActiveTab(matchingTitle: "") else {
                 return .failure(id: call.id, code: -32004, message: "No active tab")
             }
-            return .success(id: call.id, result: [
-                "tabId": .number(Double(tab.tabID)),
-                "windowId": .number(Double(tab.windowID)),
-                "url": tab.url.map(JSONValue.string) ?? .null,
-                "title": tab.title.map(JSONValue.string) ?? .null,
-                "documentId": tab.documentID.map(JSONValue.string) ?? .null,
-            ])
+            return .success(
+                id: call.id,
+                result: [
+                    "tabId": .number(Double(tab.tabID)),
+                    "windowId": .number(Double(tab.windowID)),
+                    "url": tab.url.map(JSONValue.string) ?? .null,
+                    "title": tab.title.map(JSONValue.string) ?? .null,
+                    "documentId": tab.documentID.map(JSONValue.string) ?? .null,
+                ])
 
         case .captureTabDOMSummary, .getTabStatus:
             guard let tabID = call.arguments["tabId"]?.intValue,
-                  let summary = domSummaries[tabID]
+                let summary = domSummaries[tabID]
             else {
                 return .failure(id: call.id, code: -32004, message: "No DOM summary")
             }
-            return .success(id: call.id, result: [
-                "title": summary.title.map(JSONValue.string) ?? .null,
-                "text": summary.text.map(JSONValue.string) ?? .null,
-                "taskState": summary.taskState.map { .string($0.rawValue) } ?? .null,
-            ])
+            return .success(
+                id: call.id,
+                result: [
+                    "title": summary.title.map(JSONValue.string) ?? .null,
+                    "text": summary.text.map(JSONValue.string) ?? .null,
+                    "taskState": summary.taskState.map { .string($0.rawValue) } ?? .null,
+                ])
 
         case .refocusTab:
             guard let tabID = call.arguments["tabId"]?.intValue else {

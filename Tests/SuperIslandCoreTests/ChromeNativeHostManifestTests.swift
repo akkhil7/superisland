@@ -9,13 +9,17 @@ final class ChromeNativeHostManifestTests: XCTestCase {
         )
 
         XCTAssertEqual(manifest.name, "com.superisland.chrome_bridge")
-        XCTAssertEqual(manifest.allowedOrigins, [
-            "chrome-extension://abcdefghijklmnopabcdefghijklmnop/",
-        ])
+        XCTAssertEqual(
+            manifest.allowedOrigins,
+            [
+                "chrome-extension://abcdefghijklmnopabcdefghijklmnop/"
+            ])
 
         let data = try JSONEncoder().encode(manifest)
         let decoded = try JSONDecoder().decode(ChromeNativeHostManifest.self, from: data)
-        XCTAssertEqual(decoded.path, "/Applications/SuperIsland.app/Contents/MacOS/SuperIslandChromeNativeHost")
+        XCTAssertEqual(
+            decoded.path, "/Applications/SuperIsland.app/Contents/MacOS/SuperIslandChromeNativeHost"
+        )
     }
 
     func testRejectsEmptyExtensionID() {

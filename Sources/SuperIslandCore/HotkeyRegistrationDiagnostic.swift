@@ -61,7 +61,7 @@ public struct HotkeyRegistrationDiagnostic: Equatable, Sendable {
             51: "Delete", 53: "Escape", 96: "F5", 97: "F6", 98: "F7",
             99: "F3", 100: "F8", 101: "F9", 103: "F11", 105: "F13",
             106: "F16", 107: "F14", 109: "F10", 111: "F12", 113: "F15",
-            118: "F4", 120: "F2", 122: "F1"
+            118: "F4", 120: "F2", 122: "F1",
         ]
         return map[code] ?? "Key \(code)"
     }

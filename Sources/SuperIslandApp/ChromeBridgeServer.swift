@@ -15,7 +15,7 @@ final class ChromeBridgeServer {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
         guard let p = NWEndpoint.Port(rawValue: Self.port),
-              let l = try? NWListener(using: params, on: p)
+            let l = try? NWListener(using: params, on: p)
         else { return }
 
         l.newConnectionHandler = { [weak self] conn in
@@ -32,18 +32,23 @@ final class ChromeBridgeServer {
 
     private func accept(_ connection: NWConnection) {
         connection.start(queue: .global(qos: .utility))
-        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) { [weak self] data, _, _, _ in
+        connection.receive(minimumIncompleteLength: 1, maximumLength: 64 * 1024) {
+            [weak self] data, _, _, _ in
             guard let data,
-                  let str = String(data: data, encoding: .utf8),
-                  let sep = str.range(of: "\r\n\r\n")
+                let str = String(data: data, encoding: .utf8),
+                let sep = str.range(of: "\r\n\r\n")
             else { return }
 
             let body = Data(str[sep.upperBound...].utf8)
             DispatchQueue.main.async { [weak self] in
-                let payload = self?.handle(body: body) ?? Self.responseData(
-                    ChromeBridgeHTTPResponse(ok: false, commands: nil, error: "bridge unavailable")
-                )
-                let header = "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(payload.count)\r\nConnection: close\r\n\r\n"
+                let payload =
+                    self?.handle(body: body)
+                    ?? Self.responseData(
+                        ChromeBridgeHTTPResponse(
+                            ok: false, commands: nil, error: "bridge unavailable")
+                    )
+                let header =
+                    "HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nContent-Length: \(payload.count)\r\nConnection: close\r\n\r\n"
                 connection.send(
                     content: Data(header.utf8) + payload,
                     completion: .contentProcessed { _ in connection.cancel() }
@@ -56,9 +61,11 @@ final class ChromeBridgeServer {
         if let call = try? JSONDecoder().decode(ChromeBridgeToolCall.self, from: body) {
             return handleToolCall(call)
         }
-        guard let event = try? JSONDecoder().decode(ChromeBridgeExtensionEvent.self, from: body) else {
+        guard let event = try? JSONDecoder().decode(ChromeBridgeExtensionEvent.self, from: body)
+        else {
             return Self.responseData(
-                ChromeBridgeHTTPResponse(ok: false, commands: nil, error: "malformed chrome bridge message")
+                ChromeBridgeHTTPResponse(
+                    ok: false, commands: nil, error: "malformed chrome bridge message")
             )
         }
 
@@ -77,7 +84,8 @@ final class ChromeBridgeServer {
     }
 
     private func response(_ response: ChromeBridgeResponse) -> Data {
-        (try? JSONEncoder().encode(response)) ?? Data(#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"encode error"}}"#.utf8)
+        (try? JSONEncoder().encode(response))
+            ?? Data(#"{"jsonrpc":"2.0","error":{"code":-32603,"message":"encode error"}}"#.utf8)
     }
 
     private static func responseData(_ response: ChromeBridgeHTTPResponse) -> Data {

@@ -17,7 +17,8 @@ enum AppleScriptRunner {
         }
         let result = script.executeAndReturnError(&errorInfo)
         if let errorInfo {
-            let msg = errorInfo[NSAppleScript.errorMessage] as? String ?? "unknown AppleScript error"
+            let msg =
+                errorInfo[NSAppleScript.errorMessage] as? String ?? "unknown AppleScript error"
             throw ScriptError(message: msg)
         }
         return result.stringValue ?? ""

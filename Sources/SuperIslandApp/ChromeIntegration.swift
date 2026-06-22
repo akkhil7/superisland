@@ -44,7 +44,8 @@ final class ChromeIntegration: ObservableObject {
         let data = try JSONEncoder.pretty.encode(manifest)
 
         var wroteAny = false
-        for dir in Self.nativeHostDirs where FileManager.default.fileExists(
+        for dir in Self.nativeHostDirs
+        where FileManager.default.fileExists(
             atPath: dir.deletingLastPathComponent().path
         ) {
             try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
@@ -78,11 +79,11 @@ final class ChromeIntegration: ObservableObject {
         // chrome:// URLs can't be opened via NSWorkspace URL routing; ask
         // Chrome itself.
         let script = """
-        tell application "Google Chrome"
-            activate
-            open location "chrome://extensions"
-        end tell
-        """
+            tell application "Google Chrome"
+                activate
+                open location "chrome://extensions"
+            end tell
+            """
         _ = try? AppleScriptRunner.run(script)
     }
 
@@ -95,15 +96,17 @@ final class ChromeIntegration: ObservableObject {
     static func scanChromeProfiles(for extensionID: String) -> Bool {
         let chromeDir = FileManager.default.homeDirectoryForCurrentUser
             .appendingPathComponent("Library/Application Support/Google/Chrome")
-        guard let profiles = try? FileManager.default.contentsOfDirectory(
-            at: chromeDir, includingPropertiesForKeys: nil
-        ) else { return false }
+        guard
+            let profiles = try? FileManager.default.contentsOfDirectory(
+                at: chromeDir, includingPropertiesForKeys: nil
+            )
+        else { return false }
 
         for profile in profiles {
             for name in ["Secure Preferences", "Preferences"] {
                 let url = profile.appendingPathComponent(name)
                 guard let data = try? Data(contentsOf: url),
-                      let text = String(data: data, encoding: .utf8)
+                    let text = String(data: data, encoding: .utf8)
                 else { continue }
                 if text.contains(extensionID) { return true }
             }

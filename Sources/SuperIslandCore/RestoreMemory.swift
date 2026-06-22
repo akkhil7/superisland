@@ -118,7 +118,8 @@ public enum RestoreMatcher {
         let sorted = candidates.sorted { $0.score > $1.score }
         guard let best = sorted.first else { return nil }
         if sorted.count > 1, let second = sorted.dropFirst().first,
-           best.score - second.score < 0.05 {
+            best.score - second.score < 0.05
+        {
             return nil
         }
         return RestoreSuggestion(

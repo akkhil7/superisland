@@ -12,7 +12,8 @@ final class HotkeyManager {
     private var onTrigger: (() -> Void)?
     private var lastKeyCode: UInt32 = UInt32(kVK_ANSI_K)
     private var lastModifiers: UInt32 = UInt32(optionKey | cmdKey)
-    private var matcher = HotkeyMatcher(keyCode: Int(kVK_ANSI_K), modifiers: Int(optionKey | cmdKey))
+    private var matcher = HotkeyMatcher(
+        keyCode: Int(kVK_ANSI_K), modifiers: Int(optionKey | cmdKey))
     private var lastTriggerAt = Date.distantPast
 
     private let signature: OSType = {
@@ -49,7 +50,8 @@ final class HotkeyManager {
             1, &eventType, selfPtr, &handlerRef
         )
 
-        let registerStatus = installStatus == noErr
+        let registerStatus =
+            installStatus == noErr
             ? registerKey(keyCode: keyCode, modifiers: modifiers)
             : nil
         installKeyboardMonitors()
@@ -78,7 +80,8 @@ final class HotkeyManager {
 
     private func registerKey(keyCode: UInt32, modifiers: UInt32) -> OSStatus {
         let id = EventHotKeyID(signature: signature, id: 1)
-        return RegisterEventHotKey(keyCode, modifiers, id, GetEventDispatcherTarget(), 0, &hotKeyRef)
+        return RegisterEventHotKey(
+            keyCode, modifiers, id, GetEventDispatcherTarget(), 0, &hotKeyRef)
     }
 
     private func installKeyboardMonitors() {
@@ -105,7 +108,9 @@ final class HotkeyManager {
 
     private func handleKeyboardEvent(_ event: NSEvent) {
         let mods = carbonMods(from: event.modifierFlags)
-        guard matcher.matches(eventKeyCode: Int(event.keyCode), eventModifiers: mods) else { return }
+        guard matcher.matches(eventKeyCode: Int(event.keyCode), eventModifiers: mods) else {
+            return
+        }
         trigger()
     }
 
@@ -121,8 +126,8 @@ final class HotkeyManager {
     private func carbonMods(from flags: NSEvent.ModifierFlags) -> Int {
         var m = 0
         if flags.contains(.command) { m |= cmdKey }
-        if flags.contains(.option)  { m |= optionKey }
-        if flags.contains(.shift)   { m |= shiftKey }
+        if flags.contains(.option) { m |= optionKey }
+        if flags.contains(.shift) { m |= shiftKey }
         if flags.contains(.control) { m |= controlKey }
         return m
     }

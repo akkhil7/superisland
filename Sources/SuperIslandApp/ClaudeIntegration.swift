@@ -22,7 +22,8 @@ final class ClaudeIntegration: ObservableObject {
     }
 
     func refresh() {
-        isInstalled = FileManager.default.fileExists(atPath: Self.scriptPath.path)
+        isInstalled =
+            FileManager.default.fileExists(atPath: Self.scriptPath.path)
             && ClaudeHooksConfigurator.isInstalled(settings: Self.readSettings())
     }
 
@@ -32,7 +33,7 @@ final class ClaudeIntegration: ObservableObject {
     /// add the missing ones. Idempotent and preserves the user's own hooks.
     func reconcile() {
         guard FileManager.default.fileExists(atPath: Self.scriptPath.path),
-              !ClaudeHooksConfigurator.isInstalled(settings: Self.readSettings())
+            !ClaudeHooksConfigurator.isInstalled(settings: Self.readSettings())
         else { return }
         try? install()
     }
@@ -61,7 +62,7 @@ final class ClaudeIntegration: ObservableObject {
 
     private static func readSettings() -> [String: Any] {
         guard let data = try? Data(contentsOf: settingsPath),
-              let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+            let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
         else { return [:] }
         return obj
     }
@@ -104,7 +105,8 @@ final class ClaudeIntegration: ObservableObject {
     /// metadata files on miss (they're few), with a short cache for bursts.
     func localSession(forCLISessionID cliID: String) -> ClaudeLocalSession? {
         if let hit = sessionCache[cliID],
-           Date().timeIntervalSince(sessionCacheAt) < 10 {
+            Date().timeIntervalSince(sessionCacheAt) < 10
+        {
             return hit
         }
         rebuildSessionCache()
@@ -141,7 +143,7 @@ final class ClaudeIntegration: ObservableObject {
     /// URL, derived from the session's cwd + CLI id. nil if unresolved.
     func transcriptPath(forContentURL url: String) -> String? {
         guard let session = localSession(forContentURL: url),
-              let cwd = session.cwd, !cwd.isEmpty
+            let cwd = session.cwd, !cwd.isEmpty
         else { return nil }
         return ClaudeTranscript.path(
             home: FileManager.default.homeDirectoryForCurrentUser,
@@ -178,9 +180,10 @@ final class ClaudeIntegration: ObservableObject {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
         if let key = apiKey, !key.isEmpty,
-           let verdict = try? await ClaudeClassifier(
-               apiKey: key, model: ClassifierProtocolBuilder.defaultModel
-           ).classifyTurnEndMessage(trimmed) {
+            let verdict = try? await ClaudeClassifier(
+                apiKey: key, model: ClassifierProtocolBuilder.defaultModel
+            ).classifyTurnEndMessage(trimmed)
+        {
             switch verdict.status {
             case .needsAttention: return (.needsAttention, verdict.reason)
             case .working: return (.working, "Claude is working…")
@@ -205,16 +208,18 @@ final class ClaudeIntegration: ObservableObject {
     private func rebuildSessionCache() {
         var cache: [String: ClaudeLocalSession] = [:]
         let fm = FileManager.default
-        guard let enumerator = fm.enumerator(
-            at: Self.sessionsDir,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        ) else { return }
+        guard
+            let enumerator = fm.enumerator(
+                at: Self.sessionsDir,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
+        else { return }
         for case let url as URL in enumerator {
             guard url.lastPathComponent.hasPrefix("local_"),
-                  url.pathExtension == "json",
-                  let data = try? Data(contentsOf: url),
-                  let session = ClaudeLocalSession.parse(data: data)
+                url.pathExtension == "json",
+                let data = try? Data(contentsOf: url),
+                let session = ClaudeLocalSession.parse(data: data)
             else { continue }
             cache[session.cliSessionID] = session
         }

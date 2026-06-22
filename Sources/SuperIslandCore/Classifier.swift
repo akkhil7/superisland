@@ -53,40 +53,40 @@ public enum ClassifierProtocolBuilder {
     public static let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
 
     public static let systemPrompt = """
-    You monitor a single application window on a user's Mac to tell them when a \
-    long-running task needs them. Classify the window's CURRENT state into exactly one of:
-    - "working": a task is actively running or producing output.
-    - "needsAttention": a task ran, then stopped, and is now explicitly waiting for \
-    the user — a question, confirmation, password prompt, or blocking error.
-    - "done": a task finished successfully and needs nothing further.
-    - "unknown": no task evidence — an empty or idle window with no preceding \
-    command output, a fresh terminal, or a state you genuinely cannot read.
+        You monitor a single application window on a user's Mac to tell them when a \
+        long-running task needs them. Classify the window's CURRENT state into exactly one of:
+        - "working": a task is actively running or producing output.
+        - "needsAttention": a task ran, then stopped, and is now explicitly waiting for \
+        the user — a question, confirmation, password prompt, or blocking error.
+        - "done": a task finished successfully and needs nothing further.
+        - "unknown": no task evidence — an empty or idle window with no preceding \
+        command output, a fresh terminal, or a state you genuinely cannot read.
 
-    CRITICAL: A bare shell prompt ($, %, >, ➜, or similar) with NO preceding command \
-    output means no task was ever running — classify as "unknown", NOT "needsAttention". \
-    Only classify "needsAttention" if you can see actual task output followed by a \
-    question or input request. An idle shell after output means "done".
+        CRITICAL: A bare shell prompt ($, %, >, ➜, or similar) with NO preceding command \
+        output means no task was ever running — classify as "unknown", NOT "needsAttention". \
+        Only classify "needsAttention" if you can see actual task output followed by a \
+        question or input request. An idle shell after output means "done".
 
-    If a screenshot is provided, read the task state from the screenshot — it is \
-    the primary evidence when the window text is thin or missing. For AI-assistant \
-    apps (Claude, ChatGPT, Cursor, …): a streaming/typing response or a visible \
-    stop button means "working"; a completed response means "done"; a permission \
-    or confirmation dialog means "needsAttention".
+        If a screenshot is provided, read the task state from the screenshot — it is \
+        the primary evidence when the window text is thin or missing. For AI-assistant \
+        apps (Claude, ChatGPT, Cursor, …): a streaming/typing response or a visible \
+        stop button means "working"; a completed response means "done"; a permission \
+        or confirmation dialog means "needsAttention".
 
-    For AI coding editors (Cursor, VS Code with an agent/chat panel): judge by the \
-    agent panel, not the code. An agent generating, running tools, or applying edits \
-    means "working". The agent asking ANYTHING of the user — approve a command, \
-    accept/reject edits, answer a question, provide more information or input — \
-    means "needsAttention". A finished agent response with no pending request means \
-    "done". Plain code editing with no agent activity means "unknown".
+        For AI coding editors (Cursor, VS Code with an agent/chat panel): judge by the \
+        agent panel, not the code. An agent generating, running tools, or applying edits \
+        means "working". The agent asking ANYTHING of the user — approve a command, \
+        accept/reject edits, answer a question, provide more information or input — \
+        means "needsAttention". A finished agent response with no pending request means \
+        "done". Plain code editing with no agent activity means "unknown".
 
-    Also generate a "label": a ≤5-word title describing what the task IS (not its status). \
-    Examples: "npm build", "pytest suite", "git push origin", "Claude agent", "Docker image build". \
-    If there is no discernible task, use a short app description like "Terminal session".
+        Also generate a "label": a ≤5-word title describing what the task IS (not its status). \
+        Examples: "npm build", "pytest suite", "git push origin", "Claude agent", "Docker image build". \
+        If there is no discernible task, use a short app description like "Terminal session".
 
-    Respond with ONLY a JSON object, no prose, no markdown fences:
-    {"status": "...", "reason": "<=12 words", "label": "<=5 words", "confidence": 0.0-1.0}
-    """
+        Respond with ONLY a JSON object, no prose, no markdown fences:
+        {"status": "...", "reason": "<=12 words", "label": "<=5 words", "confidence": 0.0-1.0}
+        """
 
     /// Focused classifier prompt for the END of a Claude Code turn. The general
     /// `systemPrompt` monitors arbitrary windows (shells, editors, screenshots)
@@ -96,34 +96,34 @@ public enum ClassifierProtocolBuilder {
     /// real turn-endings (sign-offs → done, questions → needsAttention, code
     /// `?` ignored).
     public static let turnEndSystemPrompt = """
-    You are a status classifier for an AI coding assistant (e.g. Claude Code) \
-    running in a terminal. You are given ONLY the assistant's final message to \
-    the user at the end of its turn. Decide what, if anything, the user must do now.
+        You are a status classifier for an AI coding assistant (e.g. Claude Code) \
+        running in a terminal. You are given ONLY the assistant's final message to \
+        the user at the end of its turn. Decide what, if anything, the user must do now.
 
-    Output exactly one status:
-    - "needsAttention": the assistant is blocked on the user. It asks a direct \
-    question, requests a decision/approval/confirmation, asks for missing \
-    information, or reports an error or condition the user must resolve before \
-    work can continue. The user MUST reply or act for the assistant to proceed.
-    - "done": the assistant has finished its turn and needs nothing to proceed. \
-    Includes completed work, summaries/status reports ("all tests pass", \
-    "rebuilt and relaunched"), and friendly sign-offs or idle pleasantries \
-    ("let me know if you need anything", "ping me whenever", "have a great \
-    one"). A polite OPTIONAL offer of future help is "done", not "needsAttention".
-    - "working": the assistant says it is still actively doing something right \
-    now (rare in a final message).
+        Output exactly one status:
+        - "needsAttention": the assistant is blocked on the user. It asks a direct \
+        question, requests a decision/approval/confirmation, asks for missing \
+        information, or reports an error or condition the user must resolve before \
+        work can continue. The user MUST reply or act for the assistant to proceed.
+        - "done": the assistant has finished its turn and needs nothing to proceed. \
+        Includes completed work, summaries/status reports ("all tests pass", \
+        "rebuilt and relaunched"), and friendly sign-offs or idle pleasantries \
+        ("let me know if you need anything", "ping me whenever", "have a great \
+        one"). A polite OPTIONAL offer of future help is "done", not "needsAttention".
+        - "working": the assistant says it is still actively doing something right \
+        now (rare in a final message).
 
-    Decision rule: pick "needsAttention" ONLY if the assistant cannot continue \
-    without a user reply. If it could simply stop here owing nothing, pick \
-    "done". If the message both reports completion AND asks a question, the \
-    question wins → "needsAttention". Ignore questions that appear inside code \
-    (backticks or code blocks).
+        Decision rule: pick "needsAttention" ONLY if the assistant cannot continue \
+        without a user reply. If it could simply stop here owing nothing, pick \
+        "done". If the message both reports completion AND asks a question, the \
+        question wins → "needsAttention". Ignore questions that appear inside code \
+        (backticks or code blocks).
 
-    Also produce "label": a <=5-word description of the task (not its status).
+        Also produce "label": a <=5-word description of the task (not its status).
 
-    Respond with ONLY a JSON object, no prose, no markdown fences:
-    {"status":"...","reason":"<=12 words","label":"<=5 words","confidence":0.0-1.0}
-    """
+        Respond with ONLY a JSON object, no prose, no markdown fences:
+        {"status":"...","reason":"<=12 words","label":"<=5 words","confidence":0.0-1.0}
+        """
 
     /// Request body for classifying a Claude turn-end message with the focused
     /// `turnEndSystemPrompt`. The message is the sole user text block.
@@ -133,9 +133,12 @@ public enum ClassifierProtocolBuilder {
             "max_tokens": 256,
             "system": turnEndSystemPrompt,
             "messages": [
-                ["role": "user", "content": [
-                    ["type": "text", "text": "Assistant's final message:\n\n\(message)"],
-                ]],
+                [
+                    "role": "user",
+                    "content": [
+                        ["type": "text", "text": "Assistant's final message:\n\n\(message)"]
+                    ],
+                ]
             ],
         ]
     }
@@ -161,11 +164,11 @@ public enum ClassifierProtocolBuilder {
 
         let header = "App: \(input.appName)\nWindow: \(input.windowTitle)"
         let text = """
-        \(header)
+            \(header)
 
-        Window text (may be truncated):
-        \(input.axText)
-        """
+            Window text (may be truncated):
+            \(input.axText)
+            """
         content.append(["type": "text", "text": text])
 
         return [
@@ -173,7 +176,7 @@ public enum ClassifierProtocolBuilder {
             "max_tokens": 256,
             "system": systemPrompt,
             "messages": [
-                ["role": "user", "content": content],
+                ["role": "user", "content": content]
             ],
         ]
     }
@@ -186,7 +189,8 @@ public enum ClassifierProtocolBuilder {
             let contentBlocks = root["content"] as? [[String: Any]]
         else { throw ClassifierError.malformedResponse }
 
-        let text = contentBlocks
+        let text =
+            contentBlocks
             .filter { ($0["type"] as? String) == "text" }
             .compactMap { $0["text"] as? String }
             .joined(separator: "\n")
@@ -198,7 +202,8 @@ public enum ClassifierProtocolBuilder {
         let statusRaw = (obj["status"] as? String) ?? "unknown"
         let status = DropStatus(rawValue: statusRaw) ?? .unknown
         let reason = (obj["reason"] as? String) ?? ""
-        let confidence = (obj["confidence"] as? Double)
+        let confidence =
+            (obj["confidence"] as? Double)
             ?? (obj["confidence"] as? NSNumber)?.doubleValue
             ?? 0.0
         let label = obj["label"] as? String
@@ -218,7 +223,8 @@ public enum ClassifierProtocolBuilder {
                 if depth == 0 {
                     let slice = String(text[start...idx])
                     if let data = slice.data(using: .utf8),
-                       let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                        let obj = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+                    {
                         return obj
                     }
                     return nil
@@ -269,7 +275,8 @@ public struct ClaudeClassifier: Sendable {
         request.timeoutInterval = 20
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue(ClassifierProtocolBuilder.apiVersion, forHTTPHeaderField: "anthropic-version")
+        request.setValue(
+            ClassifierProtocolBuilder.apiVersion, forHTTPHeaderField: "anthropic-version")
         request.httpBody = try JSONSerialization.data(withJSONObject: body)
 
         let (data, response): (Data, URLResponse)

@@ -66,31 +66,35 @@ final class Settings: ObservableObject {
     }
 
     enum Keys {
-        static let useScreenshots  = "useScreenshots"
+        static let useScreenshots = "useScreenshots"
         static let rememberVisualState = "rememberVisualState"
         static let islandExpandOnHover = "islandExpandOnHover"
-        static let alertLevel      = "alertLevel"
+        static let alertLevel = "alertLevel"
         static let codexIntegrationEnabled = "codexIntegrationEnabled"
-        static let launchAtLogin   = "launchAtLogin"
-        static let autoDismiss     = "autoDismissMinutes"
-        static let hotkeyKeyCode   = "hotkeyKeyCode"
+        static let launchAtLogin = "launchAtLogin"
+        static let autoDismiss = "autoDismissMinutes"
+        static let hotkeyKeyCode = "hotkeyKeyCode"
         static let hotkeyModifiers = "hotkeyModifiers"
     }
 
-    static let defaultKeyCode: Int  = 40    // kVK_ANSI_K
-    static let defaultModifiers: Int = 2304 // optionKey | cmdKey
+    static let defaultKeyCode: Int = 40  // kVK_ANSI_K
+    static let defaultModifiers: Int = 2304  // optionKey | cmdKey
 
     init() {
-        useScreenshots    = defaults.object(forKey: Keys.useScreenshots) as? Bool ?? false
+        useScreenshots = defaults.object(forKey: Keys.useScreenshots) as? Bool ?? false
         rememberVisualState = defaults.object(forKey: Keys.rememberVisualState) as? Bool ?? false
         islandExpandOnHover = defaults.object(forKey: Keys.islandExpandOnHover) as? Bool ?? true
-        alertLevel = (defaults.object(forKey: Keys.alertLevel) as? Int)
+        alertLevel =
+            (defaults.object(forKey: Keys.alertLevel) as? Int)
             .flatMap(AlertLevel.init(rawValue:)) ?? .coloredNotch
-        codexIntegrationEnabled = defaults.object(forKey: Keys.codexIntegrationEnabled) as? Bool ?? true
-        launchAtLogin     = SMAppService.mainApp.status == .enabled
+        codexIntegrationEnabled =
+            defaults.object(forKey: Keys.codexIntegrationEnabled) as? Bool ?? true
+        launchAtLogin = SMAppService.mainApp.status == .enabled
         autoDismissMinutes = defaults.object(forKey: Keys.autoDismiss) as? Int ?? 0
-        let storedKeyCode = defaults.object(forKey: Keys.hotkeyKeyCode) as? Int ?? Self.defaultKeyCode
-        let storedModifiers = defaults.object(forKey: Keys.hotkeyModifiers) as? Int ?? Self.defaultModifiers
+        let storedKeyCode =
+            defaults.object(forKey: Keys.hotkeyKeyCode) as? Int ?? Self.defaultKeyCode
+        let storedModifiers =
+            defaults.object(forKey: Keys.hotkeyModifiers) as? Int ?? Self.defaultModifiers
         let normalizedShortcut = HotkeyShortcutPolicy.normalized(
             keyCode: storedKeyCode,
             modifiers: storedModifiers,

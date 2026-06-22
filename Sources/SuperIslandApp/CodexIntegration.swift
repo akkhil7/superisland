@@ -36,14 +36,15 @@ final class CodexIntegration: ObservableObject {
     /// (prompt the thread first and it's deterministic).
     func currentSessionGuess() -> (id: String, title: String?)? {
         let roots = activeWorkspaceRoots()
-        let best = latestRollout { url in
-            guard !roots.isEmpty else { return true }
-            guard let cwd = self.rolloutCWD(url) else { return false }
-            return CodexWorkspaceState.cwd(cwd, isUnderAnyOf: roots)
-        } ?? latestRollout { _ in true }
+        let best =
+            latestRollout { url in
+                guard !roots.isEmpty else { return true }
+                guard let cwd = self.rolloutCWD(url) else { return false }
+                return CodexWorkspaceState.cwd(cwd, isUnderAnyOf: roots)
+            } ?? latestRollout { _ in true }
 
         guard let (url, _) = best,
-              let id = CodexRollout.sessionID(fromFilename: url.lastPathComponent)
+            let id = CodexRollout.sessionID(fromFilename: url.lastPathComponent)
         else { return nil }
         return (id, threadTitle(forID: id))
     }
@@ -60,8 +61,8 @@ final class CodexIntegration: ObservableObject {
         // The first line (session_meta) embeds base instructions and runs
         // tens of KB — read generously so it parses as a complete line.
         guard let handle = try? FileHandle(forReadingFrom: url),
-              let data = try? handle.read(upToCount: 512 * 1024),
-              let head = String(data: data, encoding: .utf8)
+            let data = try? handle.read(upToCount: 512 * 1024),
+            let head = String(data: data, encoding: .utf8)
         else { return nil }
         try? handle.close()
         guard let cwd = CodexRollout.cwd(fromHead: head) else { return nil }
@@ -93,8 +94,9 @@ final class CodexIntegration: ObservableObject {
     /// since the last call (or can't be found).
     func statusUpdate(forSessionID id: String) -> ClaudeHookMapper.Update? {
         guard let url = rolloutFile(forSessionID: id) else { return nil }
-        guard let mtime = try? FileManager.default
-            .attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+        guard
+            let mtime = try? FileManager.default
+                .attributesOfItem(atPath: url.path)[.modificationDate] as? Date
         else { return nil }
         if let seen = lastMTimes[id], seen >= mtime { return nil }
         lastMTimes[id] = mtime
@@ -107,7 +109,8 @@ final class CodexIntegration: ObservableObject {
 
     private func rolloutFile(forSessionID id: String) -> URL? {
         if let cached = rolloutPaths[id],
-           FileManager.default.fileExists(atPath: cached.path) {
+            FileManager.default.fileExists(atPath: cached.path)
+        {
             return cached
         }
         rescanRollouts()
@@ -118,8 +121,9 @@ final class CodexIntegration: ObservableObject {
         rescanRollouts()
         var best: (URL, Date)?
         for url in rolloutPaths.values where include(url) {
-            guard let mtime = try? FileManager.default
-                .attributesOfItem(atPath: url.path)[.modificationDate] as? Date
+            guard
+                let mtime = try? FileManager.default
+                    .attributesOfItem(atPath: url.path)[.modificationDate] as? Date
             else { continue }
             if best == nil || mtime > best!.1 { best = (url, mtime) }
         }
@@ -127,14 +131,16 @@ final class CodexIntegration: ObservableObject {
     }
 
     private func rescanRollouts() {
-        guard let enumerator = FileManager.default.enumerator(
-            at: Self.sessionsDir,
-            includingPropertiesForKeys: nil,
-            options: [.skipsHiddenFiles]
-        ) else { return }
+        guard
+            let enumerator = FileManager.default.enumerator(
+                at: Self.sessionsDir,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles]
+            )
+        else { return }
         for case let url as URL in enumerator {
             guard url.pathExtension == "jsonl",
-                  let id = CodexRollout.sessionID(fromFilename: url.lastPathComponent)
+                let id = CodexRollout.sessionID(fromFilename: url.lastPathComponent)
             else { continue }
             rolloutPaths[id] = url
         }
