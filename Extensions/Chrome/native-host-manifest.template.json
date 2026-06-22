@@ -1,7 +1,7 @@
 {
-  "name": "com.useklip.chrome_bridge",
-  "description": "Klip Chrome native messaging bridge",
-  "path": "/Applications/Klip.app/Contents/MacOS/KlipChromeNativeHost",
+  "name": "com.superisland.chrome_bridge",
+  "description": "SuperIsland Chrome native messaging bridge",
+  "path": "/Applications/SuperIsland.app/Contents/MacOS/SuperIslandChromeNativeHost",
   "type": "stdio",
   "allowed_origins": [
     "chrome-extension://REPLACE_WITH_EXTENSION_ID/"

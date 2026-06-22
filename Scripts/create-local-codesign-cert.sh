@@ -1,13 +1,13 @@
 #!/bin/bash
-# Create a local self-signed code-signing certificate named "Klip Dev".
+# Create a local self-signed code-signing certificate named "SuperIsland Dev".
 #
 # This keeps macOS TCC grants stable across local rebuilds without using a
 # personal Apple Development certificate. Run once, then rebuild the app.
 set -euo pipefail
 
-NAME="${1:-Klip Dev}"
+NAME="${1:-SuperIsland Dev}"
 KEYCHAIN="${HOME}/Library/Keychains/login.keychain-db"
-P12_PASSWORD="klip-local-dev"
+P12_PASSWORD="superisland-local-dev"
 
 if security find-identity -v -p codesigning | grep -q "\"${NAME}\""; then
     echo "Code-signing identity already exists: ${NAME}"
@@ -32,7 +32,7 @@ x509_extensions = codesign_ext
 
 [ dn ]
 CN = ${NAME}
-O = Klip Local Development
+O = SuperIsland Local Development
 
 [ codesign_ext ]
 basicConstraints = critical,CA:false

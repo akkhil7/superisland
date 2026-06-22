@@ -1,16 +1,16 @@
-# Klip Onboarding Journey — Design
+# SuperIsland Onboarding Journey — Design
 
 Date: 2026-06-13
 Status: approved by Akhil (chat), pending spec review
 
 ## Purpose
 
-Klip currently has no first-run experience: the app lands in the menu bar, the
-hotkey beeps without Accessibility, and the integrations that make Klip
+SuperIsland currently has no first-run experience: the app lands in the menu bar, the
+hotkey beeps without Accessibility, and the integrations that make SuperIsland
 magical (shell, Claude Desktop, Codex, Chrome) hide in Settings. The
 onboarding journey introduces the product story, secures the one required
 permission, and walks every integration to "live" — in a window that looks
-and feels like the useklip.com landing page: premium, dark, purple.
+and feels like the superisland.com landing page: premium, dark, purple.
 
 ## Visual system (from `website/index.html`)
 
@@ -33,13 +33,13 @@ every step skippable.
 
 1. **Welcome** — aurora + mascot, "Never babysit a *window* again" (serif
    italic on "window"), subline, primary pill **Begin**.
-2. **The Klip way** — four glass rows, copy mirroring the landing page:
-   Shells tell Klip when commands finish · Chrome tells Klip which tab
+2. **The SuperIsland way** — four glass rows, copy mirroring the landing page:
+   Shells tell SuperIsland when commands finish · Chrome tells SuperIsland which tab
    matters · Agents report themselves · AI covers everything else.
 3. **Accessibility** (required) — explanation, live status chip (2s poll via
    the existing `PermissionsManager`), **Grant Access** button
    (`requestAccessibility` + open System Settings), stale-grant reset (⟲)
-   beneath. Continue remains enabled; copy states Klip can't work without it.
+   beneath. Continue remains enabled; copy states SuperIsland can't work without it.
 4. **Terminal** — one-click **Set Up Shell Integration**
    (`ShellIntegration.install`), live "N sessions connected" chip, note to
    restart open terminals.
@@ -52,7 +52,7 @@ every step skippable.
    (`ChromeIntegration.setUp`), then load-unpacked guidance with
    **Open Chrome Extensions** / **Reveal Folder** / **Check Again**, live
    "Extension loaded" chip (profile scan).
-8. **Drop your first klip** — large keycap rendering of the current hotkey
+8. **Drop your first superisland** — large keycap rendering of the current hotkey
    (live from `Settings.hotkeyKeyCode/Modifiers`), **Finish** dissolves the
    window and the notch island pulses once as a welcome.
 
@@ -71,7 +71,7 @@ every step skippable.
 ## Architecture
 
 ```
-Sources/KlipApp/Onboarding/
+Sources/SuperIslandApp/Onboarding/
   OnboardingTheme.swift   // colors, fonts (CTFontManager registration),
                           // chip/pill/card/keycap components, starfield+aurora
   OnboardingWindow.swift  // NSWindow controller, show/close, first-run logic
@@ -83,7 +83,7 @@ Sources/KlipApp/Onboarding/
   settings, shell/claude/chrome/codex integrations).
 - `Scripts/build-app.sh` additionally copies `website/assets/mascot.webp`,
   `website/assets/hero-aurora.webp`, and the two Instrument Serif TTFs into
-  `Klip.app/Contents/Resources/Onboarding/`.
+  `SuperIsland.app/Contents/Resources/Onboarding/`.
 - Fonts are downloaded once into `Resources/Fonts/` in the repo (not at build
   time); if absent, the UI silently uses New York italic.
 

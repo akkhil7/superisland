@@ -1,4 +1,4 @@
-const NATIVE_HOST = "com.useklip.chrome_bridge";
+const NATIVE_HOST = "com.superisland.chrome_bridge";
 
 let nativePort = null;
 const documentIds = new Map();
@@ -37,7 +37,7 @@ async function captureTabState(tabId) {
 
   let domSummary = null;
   try {
-    domSummary = await chrome.tabs.sendMessage(tabId, { type: "klip_collect_dom" });
+    domSummary = await chrome.tabs.sendMessage(tabId, { type: "superisland_collect_dom" });
   } catch {
     domSummary = {
       title: tab.title || "",
@@ -99,7 +99,7 @@ chrome.webNavigation.onCommitted.addListener((details) => {
 });
 
 chrome.runtime.onMessage.addListener((message, sender) => {
-  if (message?.type !== "klip_dom_state" || !sender.tab?.id) return;
+  if (message?.type !== "superisland_dom_state" || !sender.tab?.id) return;
   captureTabState(sender.tab.id);
 });
 

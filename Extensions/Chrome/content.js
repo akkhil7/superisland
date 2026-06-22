@@ -22,7 +22,7 @@ function collectDOMSummary() {
 }
 
 chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-  if (message?.type === "klip_collect_dom") {
+  if (message?.type === "superisland_collect_dom") {
     sendResponse(collectDOMSummary());
   }
   return true;
@@ -32,7 +32,7 @@ let pending = null;
 const observer = new MutationObserver(() => {
   clearTimeout(pending);
   pending = setTimeout(() => {
-    chrome.runtime.sendMessage({ type: "klip_dom_state" }).catch(() => {});
+    chrome.runtime.sendMessage({ type: "superisland_dom_state" }).catch(() => {});
   }, 650);
 });
 

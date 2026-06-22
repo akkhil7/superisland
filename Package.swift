@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "Klip",
+    name: "SuperIsland",
     platforms: [.macOS(.v14)],
     targets: [
         // Pure, testable logic. No SwiftUI/AppKit imports so tests stay fast and clean.
         .target(
-            name: "KlipCore"
+            name: "SuperIslandCore"
         ),
         // The macOS menu-bar agent: UI + OS integration (AppKit, SwiftUI,
         // ScreenCaptureKit, Accessibility, AppleScript).
@@ -15,18 +15,18 @@ let package = Package(
         // inherently main-thread, callback-heavy, and full of non-Sendable OS
         // types, so strict Swift 6 concurrency adds churn without safety here.
         .executableTarget(
-            name: "KlipApp",
-            dependencies: ["KlipCore"],
+            name: "SuperIslandApp",
+            dependencies: ["SuperIslandCore"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
-            name: "KlipChromeNativeHost",
-            dependencies: ["KlipCore"],
+            name: "SuperIslandChromeNativeHost",
+            dependencies: ["SuperIslandCore"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .testTarget(
-            name: "KlipCoreTests",
-            dependencies: ["KlipCore"]
+            name: "SuperIslandCoreTests",
+            dependencies: ["SuperIslandCore"]
         ),
     ]
 )

@@ -1,26 +1,26 @@
-# Klip Onboarding Journey Implementation Plan
+# SuperIsland Onboarding Journey Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** A premium, landing-page-themed 8-step onboarding window (welcome → story → Accessibility → Terminal → Claude → Codex → Chrome → first klip) shown on first launch and re-openable from the menu bar and Settings.
+**Goal:** A premium, landing-page-themed 8-step onboarding window (welcome → story → Accessibility → Terminal → Claude → Codex → Chrome → first superisland) shown on first launch and re-openable from the menu bar and Settings.
 
-**Architecture:** A KlipCore `OnboardingStep`/`OnboardingFlow` enum is the testable source of truth for ordering and the first-run gate. The app target gets `Sources/KlipApp/Onboarding/` with a theme file (colors/fonts/components lifted from `website/index.html`), a pager view whose steps read the existing `PermissionsManager`/`ShellIntegration`/`ClaudeIntegration`/`ChromeIntegration`/`CodexIntegration` objects for live state, and a borderless `NSWindow` controller gated by a UserDefaults flag.
+**Architecture:** A SuperIslandCore `OnboardingStep`/`OnboardingFlow` enum is the testable source of truth for ordering and the first-run gate. The app target gets `Sources/SuperIslandApp/Onboarding/` with a theme file (colors/fonts/components lifted from `website/index.html`), a pager view whose steps read the existing `PermissionsManager`/`ShellIntegration`/`ClaudeIntegration`/`ChromeIntegration`/`CodexIntegration` objects for live state, and a borderless `NSWindow` controller gated by a UserDefaults flag.
 
 **Tech Stack:** Swift 5/6, SwiftUI + AppKit, XCTest, CoreText (font registration). Spec: `docs/superpowers/specs/2026-06-13-onboarding-design.md`.
 
 ---
 
-### Task 1: OnboardingStep + OnboardingFlow in KlipCore (TDD)
+### Task 1: OnboardingStep + OnboardingFlow in SuperIslandCore (TDD)
 
 **Files:**
-- Create: `Sources/KlipCore/OnboardingFlow.swift`
-- Test: `Tests/KlipCoreTests/OnboardingFlowTests.swift`
+- Create: `Sources/SuperIslandCore/OnboardingFlow.swift`
+- Test: `Tests/SuperIslandCoreTests/OnboardingFlowTests.swift`
 
 - [ ] **Step 1: Write the failing test**
 
 ```swift
 import XCTest
-@testable import KlipCore
+@testable import SuperIslandCore
 
 final class OnboardingFlowTests: XCTestCase {
     func testStepOrderMatchesTheJourney() {
@@ -59,14 +59,14 @@ public enum OnboardingStep: String, CaseIterable, Sendable {
 
     public var title: String {
         switch self {
-        case .welcome: return "Welcome to Klip"
-        case .story: return "The Klip way"
+        case .welcome: return "Welcome to SuperIsland"
+        case .story: return "The SuperIsland way"
         case .accessibility: return "Accessibility"
         case .terminal: return "Terminal"
         case .claude: return "Claude Desktop"
         case .codex: return "Codex"
         case .chrome: return "Chrome"
-        case .finish: return "Drop your first klip"
+        case .finish: return "Drop your first superisland"
         }
     }
 }
@@ -89,8 +89,8 @@ Expected: `Executed 3 tests, with 0 failures`.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/KlipCore/OnboardingFlow.swift Tests/KlipCoreTests/OnboardingFlowTests.swift
-git commit -m "feat: onboarding step order and first-run gate in KlipCore"
+git add Sources/SuperIslandCore/OnboardingFlow.swift Tests/SuperIslandCoreTests/OnboardingFlowTests.swift
+git commit -m "feat: onboarding step order and first-run gate in SuperIslandCore"
 ```
 
 ### Task 2: Brand fonts + art assets into the bundle
@@ -129,7 +129,7 @@ done
 
 - [ ] **Step 3: Verify the bundle picks them up**
 
-Run: `./Scripts/build-app.sh debug >/dev/null && ls .build/Klip.app/Contents/Resources/Onboarding/`
+Run: `./Scripts/build-app.sh debug >/dev/null && ls .build/SuperIsland.app/Contents/Resources/Onboarding/`
 Expected: `InstrumentSerif-Italic.ttf InstrumentSerif-Regular.ttf hero-aurora.webp mascot.webp`
 
 - [ ] **Step 4: Commit**
@@ -142,7 +142,7 @@ git commit -m "feat: bundle Instrument Serif fonts and onboarding art"
 ### Task 3: OnboardingTheme — colors, fonts, components
 
 **Files:**
-- Create: `Sources/KlipApp/Onboarding/OnboardingTheme.swift`
+- Create: `Sources/SuperIslandApp/Onboarding/OnboardingTheme.swift`
 
 - [ ] **Step 1: Write the theme file**
 
@@ -360,31 +360,31 @@ Expected: `Build complete!`
 - [ ] **Step 3: Commit**
 
 ```bash
-git add Sources/KlipApp/Onboarding/OnboardingTheme.swift
+git add Sources/SuperIslandApp/Onboarding/OnboardingTheme.swift
 git commit -m "feat: onboarding visual system from landing-page tokens"
 ```
 
 ### Task 4: Hotkey keycap tokens helper (TDD-ish, app target)
 
 **Files:**
-- Modify: `Sources/KlipApp/Views.swift` — change `private func keyCodeName(` to `func keyCodeName(` (the onboarding finale renders the live shortcut)
+- Modify: `Sources/SuperIslandApp/Views.swift` — change `private func keyCodeName(` to `func keyCodeName(` (the onboarding finale renders the live shortcut)
 
 - [ ] **Step 1: Make `keyCodeName` internal**
 
-In `Sources/KlipApp/Views.swift` find `private func keyCodeName(_ code: Int) -> String` and remove `private`. (`hotkeyLabel` stays private — onboarding renders separate keycaps, not the joined string.)
+In `Sources/SuperIslandApp/Views.swift` find `private func keyCodeName(_ code: Int) -> String` and remove `private`. (`hotkeyLabel` stays private — onboarding renders separate keycaps, not the joined string.)
 
 - [ ] **Step 2: Build + commit**
 
 ```bash
 swift build 2>&1 | grep -E "error|Build complete"
-git add Sources/KlipApp/Views.swift
+git add Sources/SuperIslandApp/Views.swift
 git commit -m "refactor: expose keyCodeName for onboarding keycaps"
 ```
 
 ### Task 5: OnboardingView — pager + 8 steps
 
 **Files:**
-- Create: `Sources/KlipApp/Onboarding/OnboardingView.swift`
+- Create: `Sources/SuperIslandApp/Onboarding/OnboardingView.swift`
 
 - [ ] **Step 1: Write the view**
 
@@ -392,7 +392,7 @@ git commit -m "refactor: expose keyCodeName for onboarding keycaps"
 import SwiftUI
 import AppKit
 import Carbon.HIToolbox
-import KlipCore
+import SuperIslandCore
 
 /// The 8-step journey. Steps read the live integration objects; the window
 /// controller supplies `onFinish`.
@@ -528,7 +528,7 @@ private struct WelcomeStepView: View {
                 + Text(" again").font(.system(size: 38, weight: .bold)))
                 .foregroundStyle(OnboardingTheme.heading)
                 .multilineTextAlignment(.center)
-            Text("Klip bookmarks your long-running work — builds, deploys, Claude, Codex — and pulls you back to the exact window or tab the moment it needs you.")
+            Text("SuperIsland bookmarks your long-running work — builds, deploys, Claude, Codex — and pulls you back to the exact window or tab the moment it needs you.")
                 .font(.system(size: 13))
                 .foregroundStyle(OnboardingTheme.body)
                 .multilineTextAlignment(.center)
@@ -538,13 +538,13 @@ private struct WelcomeStepView: View {
     }
 }
 
-// MARK: - 2 · The Klip way
+// MARK: - 2 · The SuperIsland way
 
 private struct StoryStepView: View {
     private let rows: [(icon: String, title: String, detail: String)] = [
-        ("terminal.fill", "Shells tell Klip when commands finish",
+        ("terminal.fill", "Shells tell SuperIsland when commands finish",
          "A zsh/bash hook reports start and exit — status flips in milliseconds, with the exit code."),
-        ("globe", "Chrome tells Klip which tab matters",
+        ("globe", "Chrome tells SuperIsland which tab matters",
          "A lightweight extension tracks tab identity and page signals — even in background tabs."),
         ("sparkle", "Agents report themselves",
          "Claude Code hooks and Codex session journals stream ground truth: working, needs approval, done."),
@@ -555,7 +555,7 @@ private struct StoryStepView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             StepHeader(
-                eyebrow: "The Klip way",
+                eyebrow: "The SuperIsland way",
                 title: Text("The best truth source ")
                     + Text("for every app").font(OnboardingTheme.serifAccent(31))
             )
@@ -595,9 +595,9 @@ private struct AccessibilityStepView: View {
         VStack(alignment: .leading, spacing: 18) {
             StepHeader(
                 eyebrow: "One permission",
-                title: Text("Klip needs ")
+                title: Text("SuperIsland needs ")
                     + Text("Accessibility").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "It's how Klip reads window text and raises the exact window when you click a klip. Without it, nothing works — this is the only required permission."
+                subtitle: "It's how SuperIsland reads window text and raises the exact window when you click a superisland. Without it, nothing works — this is the only required permission."
             )
             OnboardingGlassCard {
                 HStack {
@@ -628,7 +628,7 @@ private struct AccessibilityStepView: View {
                 Button {
                     permissions.resetStaleGrant(service: "Accessibility")
                 } label: {
-                    Label("Toggle is ON but Klip still shows “not granted”? Reset & re-prompt.",
+                    Label("Toggle is ON but SuperIsland still shows “not granted”? Reset & re-prompt.",
                           systemImage: "arrow.counterclockwise")
                         .font(.system(size: 11))
                         .foregroundStyle(OnboardingTheme.lavender)
@@ -651,7 +651,7 @@ private struct TerminalStepView: View {
                 eyebrow: "Integration 1 of 4",
                 title: Text("Your shell, ")
                     + Text("wired in").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "One hook in zsh and bash tells Klip the instant any command finishes — in Terminal, iTerm2, Warp, anywhere. Exit 0 → done. Anything else → needs you."
+                subtitle: "One hook in zsh and bash tells SuperIsland the instant any command finishes — in Terminal, iTerm2, Warp, anywhere. Exit 0 → done. Anything else → needs you."
             )
             OnboardingGlassCard {
                 HStack {
@@ -706,7 +706,7 @@ private struct ClaudeStepView: View {
                 eyebrow: "Integration 2 of 4",
                 title: Text("Claude reports ")
                     + Text("itself").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "Claude Code hooks stream session events straight to Klip: working, finished, needs your input — even for background tabs, with zero AI calls."
+                subtitle: "Claude Code hooks stream session events straight to SuperIsland: working, finished, needs your input — even for background tabs, with zero AI calls."
             )
             OnboardingGlassCard {
                 HStack {
@@ -756,7 +756,7 @@ private struct CodexStepView: View {
                 eyebrow: "Integration 3 of 4",
                 title: Text("Codex is ")
                     + Text("already live").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "Nothing to set up. Klip reads Codex's own session journals — thread names, working / finished / needs-approval, and Codex's last message — and deep-links you back to the exact thread."
+                subtitle: "Nothing to set up. SuperIsland reads Codex's own session journals — thread names, working / finished / needs-approval, and Codex's last message — and deep-links you back to the exact thread."
             )
             OnboardingGlassCard {
                 HStack {
@@ -767,7 +767,7 @@ private struct CodexStepView: View {
                         Text("Codex")
                             .font(.system(size: 13, weight: .semibold))
                             .foregroundStyle(OnboardingTheme.heading)
-                        Text("Prompt a thread, then klip it — that's the whole gesture.")
+                        Text("Prompt a thread, then superisland it — that's the whole gesture.")
                             .font(.system(size: 11))
                             .foregroundStyle(OnboardingTheme.body)
                     }
@@ -795,7 +795,7 @@ private struct ChromeStepView: View {
                 eyebrow: "Integration 4 of 4",
                 title: Text("Exact tabs in ")
                     + Text("Chrome").font(OnboardingTheme.serifAccent(31)),
-                subtitle: "The Klip extension tracks the exact tab — identity, page signals, background or not — far beyond what screenshots can see."
+                subtitle: "The SuperIsland extension tracks the exact tab — identity, page signals, background or not — far beyond what screenshots can see."
             )
             OnboardingGlassCard {
                 VStack(alignment: .leading, spacing: 12) {
@@ -826,7 +826,7 @@ private struct ChromeStepView: View {
                                 .buttonStyle(GhostPillButtonStyle())
                         }
                     } else {
-                        Text("Connected. Chrome klips now track their exact tab, even in the background.")
+                        Text("Connected. Chrome superislands now track their exact tab, even in the background.")
                             .font(.system(size: 11.5))
                             .foregroundStyle(OnboardingTheme.body)
                     }
@@ -870,12 +870,12 @@ private struct FinishStepView: View {
     var body: some View {
         VStack(spacing: 24) {
             (Text("Drop your ").font(.system(size: 34, weight: .bold))
-                + Text("first klip").font(OnboardingTheme.serifAccent(36)))
+                + Text("first superisland").font(OnboardingTheme.serifAccent(36)))
                 .foregroundStyle(OnboardingTheme.heading)
             HStack(spacing: 10) {
                 ForEach(keycaps, id: \.self) { Keycap(symbol: $0) }
             }
-            Text("Focus any window with work in progress and press the shortcut. The island by the notch keeps watch — click a klip there to jump straight back.")
+            Text("Focus any window with work in progress and press the shortcut. The island by the notch keeps watch — click a superisland there to jump straight back.")
                 .font(.system(size: 13))
                 .foregroundStyle(OnboardingTheme.body)
                 .multilineTextAlignment(.center)
@@ -888,7 +888,7 @@ private struct FinishStepView: View {
 
 - [ ] **Step 2: Add `knownThreadCount` to CodexIntegration**
 
-In `Sources/KlipApp/CodexIntegration.swift`, after `func threadTitle(forID:)`:
+In `Sources/SuperIslandApp/CodexIntegration.swift`, after `func threadTitle(forID:)`:
 
 ```swift
     /// Number of threads in Codex's session index (shown during onboarding).
@@ -903,21 +903,21 @@ Expected: `Build complete!`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add Sources/KlipApp/Onboarding/OnboardingView.swift Sources/KlipApp/CodexIntegration.swift
+git add Sources/SuperIslandApp/Onboarding/OnboardingView.swift Sources/SuperIslandApp/CodexIntegration.swift
 git commit -m "feat: onboarding pager with 8 live-state steps"
 ```
 
 ### Task 6: OnboardingWindow controller + first-run gate
 
 **Files:**
-- Create: `Sources/KlipApp/Onboarding/OnboardingWindow.swift`
+- Create: `Sources/SuperIslandApp/Onboarding/OnboardingWindow.swift`
 
 - [ ] **Step 1: Write the window controller**
 
 ```swift
 import AppKit
 import SwiftUI
-import KlipCore
+import SuperIslandCore
 
 /// Borderless rounded window: Esc closes, background drags. Borderless
 /// windows refuse key status by default — override, or buttons won't click.
@@ -1002,7 +1002,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
 
 - [ ] **Step 2: Add `welcomePulse()` + reopen hook to AppController**
 
-In `Sources/KlipApp/AppController.swift`, after `func dismiss(_:)`:
+In `Sources/SuperIslandApp/AppController.swift`, after `func dismiss(_:)`:
 
 ```swift
     /// Set by the AppDelegate so menu/Settings can reopen the tour.
@@ -1036,20 +1036,20 @@ Expected: `Build complete!`
 - [ ] **Step 4: Commit**
 
 ```bash
-git add Sources/KlipApp/Onboarding/OnboardingWindow.swift Sources/KlipApp/AppController.swift
+git add Sources/SuperIslandApp/Onboarding/OnboardingWindow.swift Sources/SuperIslandApp/AppController.swift
 git commit -m "feat: onboarding window with first-run gate and welcome pulse"
 ```
 
 ### Task 7: Wire entry points (launch, menu bar, About pane)
 
 **Files:**
-- Modify: `Sources/KlipApp/KlipApp.swift` (AppDelegate)
-- Modify: `Sources/KlipApp/Views.swift` (MenuBarContent)
-- Modify: `Sources/KlipApp/SettingsPanes.swift` (AboutSettingsPane)
+- Modify: `Sources/SuperIslandApp/SuperIslandApp.swift` (AppDelegate)
+- Modify: `Sources/SuperIslandApp/Views.swift` (MenuBarContent)
+- Modify: `Sources/SuperIslandApp/SettingsPanes.swift` (AboutSettingsPane)
 
 - [ ] **Step 1: Show on first launch (AppDelegate)**
 
-In `Sources/KlipApp/KlipApp.swift`, add a property to `AppDelegate`:
+In `Sources/SuperIslandApp/SuperIslandApp.swift`, add a property to `AppDelegate`:
 
 ```swift
     private var onboarding: OnboardingWindowController?
@@ -1066,7 +1066,7 @@ In `applicationDidFinishLaunching`, after `island.show()` / `self.island = islan
 
 - [ ] **Step 2: Menu bar item**
 
-In `Sources/KlipApp/Views.swift` `MenuBarContent`, in the bottom `HStack` next to `OpenSettingsButton()`:
+In `Sources/SuperIslandApp/Views.swift` `MenuBarContent`, in the bottom `HStack` next to `OpenSettingsButton()`:
 
 ```swift
                 Button("Welcome Tour…") { controller.showOnboarding() }
@@ -1074,7 +1074,7 @@ In `Sources/KlipApp/Views.swift` `MenuBarContent`, in the bottom `HStack` next t
 
 - [ ] **Step 3: About pane button**
 
-In `Sources/KlipApp/SettingsPanes.swift` `AboutSettingsPane`: add
+In `Sources/SuperIslandApp/SettingsPanes.swift` `AboutSettingsPane`: add
 `@EnvironmentObject var controller: AppController` at the top of the struct,
 and below the `Link("Send Feedback", …)` line:
 
@@ -1094,7 +1094,7 @@ Expected: build clean; all tests pass (68 existing + 3 new = 71).
 - [ ] **Step 5: Commit**
 
 ```bash
-git add Sources/KlipApp/KlipApp.swift Sources/KlipApp/Views.swift Sources/KlipApp/SettingsPanes.swift
+git add Sources/SuperIslandApp/SuperIslandApp.swift Sources/SuperIslandApp/Views.swift Sources/SuperIslandApp/SettingsPanes.swift
 git commit -m "feat: onboarding entry points — first launch, menu bar, About"
 ```
 
@@ -1106,9 +1106,9 @@ git commit -m "feat: onboarding entry points — first launch, menu bar, About"
 
 ```bash
 ./Scripts/build-app.sh debug
-defaults delete com.useklip.Klip hasCompletedOnboarding 2>/dev/null
-pkill -f "MacOS/Klip$"; sleep 1
-open .build/Klip.app
+defaults delete com.superisland.SuperIsland hasCompletedOnboarding 2>/dev/null
+pkill -f "MacOS/SuperIsland$"; sleep 1
+open .build/SuperIsland.app
 ```
 
 - [ ] **Step 2: Manual checklist (user-visible)**
