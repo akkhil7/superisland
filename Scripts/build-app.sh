@@ -44,6 +44,19 @@ mkdir -p "$RES/Brand"
 [ -f "$BRAND/macos/menubar/superisland-menubar.png" ] && \
     cp "$BRAND/macos/menubar/superisland-menubar.png" "$RES/Brand/superisland-menubar.png" || true
 
+# --- Embed Sparkle.framework -------------------------------------------------
+# SPM builds Sparkle into the bin dir; copy it into the bundle and point the
+# executable's loader at Contents/Frameworks so the app finds it at runtime.
+SPARKLE_FW="$BIN/Sparkle.framework"
+if [ -d "$SPARKLE_FW" ]; then
+    mkdir -p "$APP/Contents/Frameworks"
+    rm -rf "$APP/Contents/Frameworks/Sparkle.framework"
+    cp -R "$SPARKLE_FW" "$APP/Contents/Frameworks/Sparkle.framework"
+    install_name_tool -add_rpath "@executable_path/../Frameworks" "$MACOS/SuperIsland" 2>/dev/null || true
+else
+    echo "WARNING: Sparkle.framework not found at $SPARKLE_FW — auto-update will not work"
+fi
+
 # Sign so TCC (Accessibility / Screen Recording / Automation) can attach grants.
 #
 # Ad-hoc ("-") signatures change hash on every build, so macOS treats each build
@@ -69,7 +82,21 @@ if [ -z "$SIGN_ID" ]; then
         | awk -F'"' '/Apple Development|Developer ID Application/ {print $2; exit}')"
 fi
 SIGN_ID="${SIGN_ID:--}"
-codesign --force --deep --sign "$SIGN_ID" "$APP"
+FW="$APP/Contents/Frameworks/Sparkle.framework"
+if [ -d "$FW" ]; then
+    # Sign nested helpers first (paths use Sparkle's current version dir).
+    for nested in \
+        "$FW/Versions/Current/XPCServices/Installer.xpc" \
+        "$FW/Versions/Current/XPCServices/Downloader.xpc" \
+        "$FW/Versions/Current/Autoupdate" \
+        "$FW/Versions/Current/Updater.app"; do
+        [ -e "$nested" ] && codesign --force --options runtime --timestamp \
+            --sign "$SIGN_ID" "$nested"
+    done
+    codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$FW"
+fi
+codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
 
 echo "Built: $APP  (signed with: $SIGN_ID)"
 if [ "$SIGN_ID" = "-" ]; then
