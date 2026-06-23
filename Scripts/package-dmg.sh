@@ -50,20 +50,28 @@ hdiutil create -volname "SuperIsland" -srcfolder "$STAGING" \
 rm -rf "$STAGING"
 
 # --- 4. Notarize -----------------------------------------------------------
-echo "Submitting for notarization (this can take a few minutes)…"
+echo "Submitting for notarization (this can take a few minutes)..."
 if [ -n "${NOTARY_PROFILE:-}" ]; then
-    xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+    NOTARY_AUTH=(--keychain-profile "$NOTARY_PROFILE")
 else
     : "${APPLE_ID:?Set NOTARY_PROFILE, or APPLE_ID + TEAM_ID + APPLE_APP_PASSWORD}"
     : "${TEAM_ID:?Set TEAM_ID}"
     : "${APPLE_APP_PASSWORD:?Set APPLE_APP_PASSWORD (app-specific password)}"
-    xcrun notarytool submit "$DMG" \
-        --apple-id "$APPLE_ID" --team-id "$TEAM_ID" \
-        --password "$APPLE_APP_PASSWORD" --wait
+    NOTARY_AUTH=(--apple-id "$APPLE_ID" --team-id "$TEAM_ID" --password "$APPLE_APP_PASSWORD")
+fi
+SUBMIT_OUT="$(xcrun notarytool submit "$DMG" "${NOTARY_AUTH[@]}" --wait 2>&1)"
+echo "$SUBMIT_OUT"
+# notarytool exits 0 even when the result is Invalid, so check the status and,
+# on anything but Accepted, print the detailed log (lists the offending files).
+if ! grep -q "status: Accepted" <<<"$SUBMIT_OUT"; then
+    SUB_ID="$(grep -m1 ' id:' <<<"$SUBMIT_OUT" | awk '{print $2}')"
+    echo "ERROR: notarization not accepted. Fetching detailed log..." >&2
+    [ -n "$SUB_ID" ] && xcrun notarytool log "$SUB_ID" "${NOTARY_AUTH[@]}" >&2 || true
+    exit 1
 fi
 
 # --- 5. Staple so it verifies offline --------------------------------------
-echo "Stapling ticket…"
+echo "Stapling ticket..."
 xcrun stapler staple "$DMG"
 xcrun stapler validate "$DMG"
 

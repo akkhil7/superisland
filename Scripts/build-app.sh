@@ -95,6 +95,11 @@ if [ -d "$FW" ]; then
     done
     codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$FW"
 fi
+# A second executable in Contents/MacOS is NOT covered when codesign signs the
+# bundle, so it stays ad-hoc (linker-signed) from `swift build` and fails
+# notarization ("not signed with a valid Developer ID"). Sign it explicitly.
+[ -f "$MACOS/SuperIslandChromeNativeHost" ] && codesign --force --options runtime --timestamp \
+    --sign "$SIGN_ID" "$MACOS/SuperIslandChromeNativeHost"
 codesign --force --options runtime --timestamp --sign "$SIGN_ID" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 
