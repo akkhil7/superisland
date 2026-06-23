@@ -1,12 +1,8 @@
-<?xml version="1.0" encoding="utf-8"?>
-<!-- SEED COPY — this file is the initial template committed to main.
-     The live Sparkle feed is published to and maintained on the gh-pages branch.
-     Do not edit release entries here; they are appended by the release workflow
-     via Scripts/append-appcast.py on gh-pages/appcast.xml. -->
-<rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
+<?xml version='1.0' encoding='utf-8'?>
+<rss xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle" version="2.0">
   <channel>
     <title>SuperIsland</title>
-    <link>https://akkhil7.github.io/superisland/appcast.xml</link>
+    <item><title>0.1.0</title><sparkle:version>32</sparkle:version><sparkle:shortVersionString>0.1.0</sparkle:shortVersionString><sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion><enclosure url="https://github.com/akkhil7/superisland/releases/download/v0.1.0/SuperIsland-0.1.0.dmg" length="2598789" type="application/octet-stream" sparkle:edSignature="6ITrSP15bksU15It3WfCiA20Kdlilc1yrsS2zQwL4NTqgF1ZlMqC6JIH67IwxPyfTW84En1bsy30111awu+nDg==" /></item><link>https://akkhil7.github.io/superisland/appcast.xml</link>
     <description>SuperIsland release updates</description>
   </channel>
 </rss>
