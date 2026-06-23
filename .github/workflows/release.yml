@@ -1,0 +1,115 @@
+name: Release
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # full history so rev-list build number is correct
+
+      - name: Derive version
+        id: ver
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          BUILD="$(git rev-list --count HEAD)"  # monotonic only with linear, non-rewritten history (fetch-depth: 0)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "build=$BUILD" >> "$GITHUB_OUTPUT"
+
+      - name: Inject version into Info.plist
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString '${{ steps.ver.outputs.version }}'" Resources/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion '${{ steps.ver.outputs.build }}'" Resources/Info.plist
+
+      - name: Guard against unconfigured Sparkle placeholders
+        run: |
+          if grep -qE 'REPLACE_WITH_SPARKLE_PUBLIC_ED_KEY|OWNER\.github\.io/REPO' Resources/Info.plist; then
+            echo "ERROR: Info.plist still contains Task 0 placeholders (SUPublicEDKey / SUFeedURL)." >&2
+            echo "Complete the one-time Sparkle key + GitHub Pages setup before tagging a release." >&2
+            exit 1
+          fi
+
+      - name: Import Developer ID certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+          keychain-password: ${{ secrets.KEYCHAIN_PASSWORD }}
+
+      - name: Resolve signing identity
+        id: sign
+        run: |
+          ID="$(security find-identity -v -p codesigning | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
+          echo "identity=$ID" >> "$GITHUB_OUTPUT"
+
+      - name: Build, package, notarize, staple
+        env:
+          SUPERISLAND_SIGN_IDENTITY: ${{ steps.sign.outputs.identity }}
+          DEVELOPER_ID: ${{ steps.sign.outputs.identity }}
+          APPLE_ID: ${{ secrets.NOTARY_APPLE_ID }}
+          TEAM_ID: ${{ secrets.NOTARY_TEAM_ID }}
+          APPLE_APP_PASSWORD: ${{ secrets.NOTARY_APP_PASSWORD }}
+        run: Scripts/package-dmg.sh
+
+      - name: Download Sparkle tools
+        run: |
+          SP_VER=$(python3 -c "import json;d=json.load(open('Package.resolved'));print(next(p['state']['version'] for p in d['pins'] if 'sparkle' in p['location'].lower()))")
+          echo "Resolved Sparkle version: $SP_VER"
+          curl -L -o sparkle.tar.xz "https://github.com/sparkle-project/Sparkle/releases/download/${SP_VER}/Sparkle-${SP_VER}.tar.xz"
+          mkdir sparkle-tools && tar -xf sparkle.tar.xz -C sparkle-tools
+
+      - name: Sign DMG with Sparkle EdDSA key
+        id: sparkle
+        env:
+          SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
+        run: |
+          DMG=".build/SuperIsland-${{ steps.ver.outputs.version }}.dmg"
+          SIGN_TOOL="$(find sparkle-tools -type f -name sign_update | head -1)"
+          [ -n "$SIGN_TOOL" ] || { echo "ERROR: sign_update not found in extracted Sparkle tools" >&2; exit 1; }
+          OUT="$("$SIGN_TOOL" "$DMG" --ed-key-file <(printf '%s' "$SPARKLE_PRIVATE_ED_KEY"))"
+          # OUT looks like: sparkle:edSignature="…" length="12345"
+          SIG="$(echo "$OUT" | sed -E 's/.*edSignature="([^"]+)".*/\1/')"
+          LEN="$(echo "$OUT" | sed -E 's/.*length="([0-9]+)".*/\1/')"
+          if [ -z "$SIG" ] || [ -z "$LEN" ]; then
+            echo "ERROR: sign_update produced empty signature/length. Raw output:" >&2
+            echo "$OUT" >&2
+            exit 1
+          fi
+          echo "sig=$SIG" >> "$GITHUB_OUTPUT"
+          echo "len=$LEN" >> "$GITHUB_OUTPUT"
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            ".build/SuperIsland-${{ steps.ver.outputs.version }}.dmg" \
+            --title "$GITHUB_REF_NAME" --generate-notes
+
+      - name: Update appcast on gh-pages
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          DMG_URL="https://github.com/${{ github.repository }}/releases/download/${GITHUB_REF_NAME}/SuperIsland-${{ steps.ver.outputs.version }}.dmg"
+          git fetch origin gh-pages || true
+          if git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
+            git worktree add gh-pages origin/gh-pages
+          else
+            git worktree add --orphan -b gh-pages gh-pages
+            cp appcast.xml gh-pages/appcast.xml
+          fi
+          python3 Scripts/append-appcast.py gh-pages/appcast.xml \
+            "${{ steps.ver.outputs.version }}" "${{ steps.ver.outputs.build }}" \
+            "$DMG_URL" "${{ steps.sparkle.outputs.sig }}" "${{ steps.sparkle.outputs.len }}" "14.0"
+          cd gh-pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add appcast.xml
+          git commit -m "appcast: SuperIsland ${{ steps.ver.outputs.version }}"
+          git push origin HEAD:gh-pages
