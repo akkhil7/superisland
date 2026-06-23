@@ -24,8 +24,8 @@ jobs:
 
       - name: Inject version into Info.plist
         run: |
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${{ steps.ver.outputs.version }}" Resources/Info.plist
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ steps.ver.outputs.build }}" Resources/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString '${{ steps.ver.outputs.version }}'" Resources/Info.plist
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion '${{ steps.ver.outputs.build }}'" Resources/Info.plist
 
       - name: Import Developer ID certificate
         uses: apple-actions/import-codesign-certs@v3
@@ -62,10 +62,17 @@ jobs:
           SPARKLE_PRIVATE_ED_KEY: ${{ secrets.SPARKLE_PRIVATE_ED_KEY }}
         run: |
           DMG=".build/SuperIsland-${{ steps.ver.outputs.version }}.dmg"
-          OUT="$(./sparkle-tools/bin/sign_update "$DMG" --ed-key-file <(printf '%s' "$SPARKLE_PRIVATE_ED_KEY"))"
+          SIGN_TOOL="$(find sparkle-tools -type f -name sign_update | head -1)"
+          [ -n "$SIGN_TOOL" ] || { echo "ERROR: sign_update not found in extracted Sparkle tools" >&2; exit 1; }
+          OUT="$("$SIGN_TOOL" "$DMG" --ed-key-file <(printf '%s' "$SPARKLE_PRIVATE_ED_KEY"))"
           # OUT looks like: sparkle:edSignature="…" length="12345"
           SIG="$(echo "$OUT" | sed -E 's/.*edSignature="([^"]+)".*/\1/')"
           LEN="$(echo "$OUT" | sed -E 's/.*length="([0-9]+)".*/\1/')"
+          if [ -z "$SIG" ] || [ -z "$LEN" ]; then
+            echo "ERROR: sign_update produced empty signature/length. Raw output:" >&2
+            echo "$OUT" >&2
+            exit 1
+          fi
           echo "sig=$SIG" >> "$GITHUB_OUTPUT"
           echo "len=$LEN" >> "$GITHUB_OUTPUT"
 
@@ -97,4 +104,4 @@ jobs:
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add appcast.xml
           git commit -m "appcast: SuperIsland ${{ steps.ver.outputs.version }}"
-          git push origin gh-pages
+          git push origin HEAD:gh-pages

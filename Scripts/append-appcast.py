@@ -6,6 +6,9 @@ Usage: append-appcast.py APPCAST VERSION BUILD URL ED_SIG LENGTH MIN_OS
 import sys
 import xml.etree.ElementTree as ET
 
+if len(sys.argv) != 8:
+    sys.exit("usage: append-appcast.py APPCAST VERSION BUILD URL ED_SIG LENGTH MIN_OS")
+
 SPARKLE = "http://www.andymatuschak.org/xml-namespaces/sparkle"
 ET.register_namespace("sparkle", SPARKLE)
 
