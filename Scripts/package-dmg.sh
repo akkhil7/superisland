@@ -40,7 +40,7 @@ codesign --display --verbose=2 "$APP" 2>&1 | grep -q 'flags=.*runtime' \
     || { echo "ERROR: app is not signed with hardened runtime (required for notarization)" >&2; exit 1; }
 
 # --- 3. Build the DMG -------------------------------------------------------
-echo "Packaging $DMG…"
+echo "Packaging ${DMG}..."
 rm -f "$DMG"
 STAGING="$(mktemp -d)"
 cp -R "$APP" "$STAGING/"
