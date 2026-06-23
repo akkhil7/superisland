@@ -29,12 +29,15 @@ APP="$ROOT/.build/SuperIsland.app"
 VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$APP/Contents/Info.plist" 2>/dev/null || echo 0.0)"
 DMG="$ROOT/.build/SuperIsland-$VERSION.dmg"
 
-# --- 2. Re-sign with hardened runtime (notarization requires it) ------------
-# build-app.sh signs without --options runtime, so re-sign here explicitly.
-echo "Signing with hardened runtime ($DEVELOPER_ID)…"
-codesign --force --deep --options runtime --timestamp \
-    --sign "$DEVELOPER_ID" "$APP"
-codesign --verify --strict --verbose=2 "$APP"
+# --- 2. Verify the bundle is Developer ID + hardened-runtime signed ----------
+# build-app.sh already signs inside-out (nested Sparkle helpers → framework →
+# app) with --options runtime --timestamp. Do NOT re-sign with --deep here:
+# codesign --deep does not correctly re-sign nested XPC services / helper apps
+# and would corrupt Sparkle's Updater.app/.xpc signatures. Verify instead.
+echo "Verifying signature + hardened runtime…"
+codesign --verify --deep --strict --verbose=2 "$APP"
+codesign --display --verbose=2 "$APP" 2>&1 | grep -q 'flags=.*runtime' \
+    || { echo "ERROR: app is not signed with hardened runtime (required for notarization)" >&2; exit 1; }
 
 # --- 3. Build the DMG -------------------------------------------------------
 echo "Packaging $DMG…"

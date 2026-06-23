@@ -18,7 +18,7 @@ jobs:
         id: ver
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
-          BUILD="$(git rev-list --count HEAD)"
+          BUILD="$(git rev-list --count HEAD)"  # monotonic only with linear, non-rewritten history (fetch-depth: 0)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "build=$BUILD" >> "$GITHUB_OUTPUT"
 
@@ -26,6 +26,14 @@ jobs:
         run: |
           /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString '${{ steps.ver.outputs.version }}'" Resources/Info.plist
           /usr/libexec/PlistBuddy -c "Set :CFBundleVersion '${{ steps.ver.outputs.build }}'" Resources/Info.plist
+
+      - name: Guard against unconfigured Sparkle placeholders
+        run: |
+          if grep -qE 'REPLACE_WITH_SPARKLE_PUBLIC_ED_KEY|OWNER\.github\.io/REPO' Resources/Info.plist; then
+            echo "ERROR: Info.plist still contains Task 0 placeholders (SUPublicEDKey / SUFeedURL)." >&2
+            echo "Complete the one-time Sparkle key + GitHub Pages setup before tagging a release." >&2
+            exit 1
+          fi
 
       - name: Import Developer ID certificate
         uses: apple-actions/import-codesign-certs@v3

@@ -42,6 +42,8 @@ jobs:
         run: swift format lint --strict --configuration .swift-format --recursive Sources Tests
 
       - name: Signing dry-run (ad-hoc, no secrets)
+        env:
+          SUPERISLAND_SIGN_IDENTITY: "-"
         run: |
           Scripts/build-app.sh release
           codesign --verify --deep --strict --verbose=2 .build/SuperIsland.app
