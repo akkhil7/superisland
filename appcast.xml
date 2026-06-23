@@ -6,7 +6,7 @@
 <rss version="2.0" xmlns:sparkle="http://www.andymatuschak.org/xml-namespaces/sparkle">
   <channel>
     <title>SuperIsland</title>
-    <link>https://OWNER.github.io/REPO/appcast.xml</link>
+    <link>https://akkhil7.github.io/superisland/appcast.xml</link>
     <description>SuperIsland release updates</description>
   </channel>
 </rss>

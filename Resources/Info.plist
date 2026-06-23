@@ -27,13 +27,12 @@
     <key>LSUIElement</key>
     <true/>
 
-    <!-- Sparkle auto-update: PLACEHOLDER values — fill in during Task 0 setup.
-         SUPublicEDKey: run `generate_keys` from the Sparkle distribution and paste the public key.
-         SUFeedURL: replace OWNER/REPO with the actual GitHub repository. -->
+    <!-- Sparkle auto-update. SUPublicEDKey pairs with the EdDSA private key in
+         the keychain (used by sign_update in the release workflow). -->
     <key>SUFeedURL</key>
-    <string>https://OWNER.github.io/REPO/appcast.xml</string>
+    <string>https://akkhil7.github.io/superisland/appcast.xml</string>
     <key>SUPublicEDKey</key>
-    <string>REPLACE_WITH_SPARKLE_PUBLIC_ED_KEY</string>
+    <string>lPCnIxXnFF4xIzsa3Mn/KVFgmlj53Ug3JuJm+ksvubg=</string>
     <key>SUEnableAutomaticChecks</key>
     <true/>
 
