@@ -42,6 +42,14 @@ struct OnboardingView: View {
         // stack's layout width and pushed the UI past the window edges.
         .background(OnboardingBackground())
         .onAppear { permissions.refresh() }
+        // After a fresh sign-in, let the success animation play, then advance.
+        .onChange(of: auth.isSignedIn) { _, signedIn in
+            guard signedIn, step == .signIn else { return }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+                guard step == .signIn else { return }
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.9)) { index += 1 }
+            }
+        }
     }
 
     @ViewBuilder private var content: some View {
@@ -127,30 +135,62 @@ private struct SignInStepView: View {
     @EnvironmentObject var auth: AuthService
 
     var body: some View {
-        VStack(spacing: 12) {
+        VStack(spacing: 24) {
             Text("Sign in to continue")
                 .font(.title2.bold())
                 .foregroundStyle(OnboardingTheme.heading)
-            Text("SuperIsland uses your account to run AI status checks.")
-                .font(.system(size: 13))
-                .foregroundStyle(OnboardingTheme.body)
-                .multilineTextAlignment(.center)
-                .frame(maxWidth: 400)
-            ForEach(OAuthProvider.allCases, id: \.self) { provider in
-                Button("Continue with \(provider.displayName)") {
-                    auth.signIn(provider: provider)
-                }
-                .buttonStyle(.borderedProminent)
-            }
+
             if auth.isSignedIn {
-                Label(
-                    "Signed in as \(auth.session?.email ?? "")",
-                    systemImage: "checkmark.circle.fill"
-                )
-                .foregroundStyle(.green)
+                SignInSuccessView(email: auth.session?.email ?? "")
+                    .transition(.scale(scale: 0.85).combined(with: .opacity))
+            } else {
+                VStack(spacing: 12) {
+                    ForEach(OAuthProvider.allCases, id: \.self) { provider in
+                        ProviderSignInButton(provider: provider) {
+                            auth.signIn(provider: provider)
+                        }
+                    }
+                }
+                .transition(.opacity)
             }
         }
         .frame(maxWidth: .infinity)
+        .animation(.spring(response: 0.45, dampingFraction: 0.8), value: auth.isSignedIn)
+    }
+}
+
+/// Animated confirmation shown the moment sign-in succeeds, before the
+/// onboarding auto-advances to the next step.
+private struct SignInSuccessView: View {
+    let email: String
+    @State private var pop = false
+
+    var body: some View {
+        VStack(spacing: 14) {
+            ZStack {
+                Circle()
+                    .fill(Color.green.opacity(0.16))
+                    .frame(width: 78, height: 78)
+                    .scaleEffect(pop ? 1 : 0.6)
+                Image(systemName: "checkmark.circle.fill")
+                    .font(.system(size: 54, weight: .semibold))
+                    .foregroundStyle(.green)
+                    .scaleEffect(pop ? 1 : 0.4)
+                    .opacity(pop ? 1 : 0)
+            }
+            VStack(spacing: 3) {
+                Text("Signed in")
+                    .font(.system(size: 17, weight: .semibold))
+                    .foregroundStyle(OnboardingTheme.heading)
+                Text(email)
+                    .font(.system(size: 12))
+                    .foregroundStyle(OnboardingTheme.body)
+            }
+            .opacity(pop ? 1 : 0)
+        }
+        .onAppear {
+            withAnimation(.spring(response: 0.45, dampingFraction: 0.5)) { pop = true }
+        }
     }
 }
 
