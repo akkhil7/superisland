@@ -35,9 +35,12 @@ final class AuthService: NSObject, ObservableObject {
             let web = ASWebAuthenticationSession(
                 url: url, callbackURLScheme: "superisland"
             ) { [weak self] callbackURL, error in
-                guard let self else { return }
-                if let error { self.finishPending(.failure(error)); return }
-                if let callbackURL { self.handleCallback(callbackURL) }
+                Task { @MainActor [weak self] in
+                    guard let self else { return }
+                    if let error { self.finishPending(.failure(error)); return }
+                    if let callbackURL { self.handleCallback(callbackURL) }
+                    else { self.finishPending(.failure(URLError(.unknown))) }
+                }
             }
             web.presentationContextProvider = self
             web.prefersEphemeralWebBrowserSession = false
