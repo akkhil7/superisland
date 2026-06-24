@@ -41,7 +41,7 @@ flowchart TD
     AppController --> ChromeSrv["ChromeBridgeServer :2931"]
     AppController --> Restore["RestoreGuidance (visual)"]
 
-    Monitor --> Classifier["Classifier / Claude API (weak apps)"]
+    Monitor --> Classifier["Classifier → hosted proxy (signed-in users, weak apps)"]
 
     ShellSrv --> ShellHook["zsh/bash hook  (/shell)"]
     ShellSrv --> ClaudeHook["Claude Code hook  (/claude)"]
@@ -134,13 +134,15 @@ refused with a toast, same as an unsupported app.
 ## Drop Flow
 
 1. User triggers Drop (notch island, menu bar, hotkey, or Services menu).
-2. `AppController.createDrop()` checks `SupportedApps` / `RequiredIntegration`; an
+2. `AppController.createDrop()` first checks sign-in state; if the user is not
+   signed in it shows a "Sign in to use SuperIsland" toast and opens onboarding.
+3. If signed in, it checks `SupportedApps` / `RequiredIntegration`; an
    unsupported app or missing integration is refused with a toast.
-3. Adapters identify the frontmost target and return a `WindowTarget` with the
+4. Adapters identify the frontmost target and return a `WindowTarget` with the
    strongest available `Locator`.
-4. For a generic locator with visual memory enabled, restore memory is captured
+5. For a generic locator with visual memory enabled, restore memory is captured
    (screenshot, window bounds, AX anchors, Vision OCR boxes), encrypted locally.
-5. `DropStore` persists the drop; the island and menu list update immediately.
+6. `DropStore` persists the drop; the island and menu list update immediately.
 
 ## Status / Monitoring by Integration
 
@@ -183,7 +185,83 @@ Keychain) at `~/Library/Application Support/SuperIsland/RestoreMemory/<id>.dropr
 On return it raises the window, scores current anchors vs. the saved set, and
 shows a **user-confirmed** highlight over the best match. Not autopilot.
 
+## Membership & Hosted Claude Proxy
+
+### Sign-in requirement
+
+SuperIsland requires the user to sign in before any drop can be created. This is
+a hard wall: `AppController.createDrop()` checks `AuthService.isSignedIn` and
+refuses with a "Sign in to use SuperIsland" toast — opening the onboarding sheet
+— when the condition is false. `MenuBarContent` shows a locked sign-in prompt
+when signed out. The onboarding flow (`OnboardingFlow`) has a required `signIn`
+step that blocks progression until the user is authenticated.
+
+### Authentication (Supabase, PKCE web flow)
+
+Auth is handled by Supabase Auth. Google, Microsoft/Outlook (Azure AD), and Apple
+are all supported via a single OAuth PKCE web flow using `ASWebAuthenticationSession`.
+The app registers the `superisland://auth-callback` URL scheme; after the OAuth
+redirect the system hands the callback back to the app.
+
+`AuthService` (app target) drives the sign-in flow, persists the Supabase session
+(access token + refresh token) in the Keychain under the account name
+`supabase-session`, and refreshes the token before expiry. The public Supabase
+project URL and anon key are embedded in `BackendConfig` (project ref
+`dnybgtyvqflisttbhoqw`); no secret credentials ship in the app binary.
+
+### Hosted Claude proxy (Edge Function `classify`)
+
+Classification no longer calls `api.anthropic.com` directly from the client.
+`ClaudeClassifier` (proxy mode) POSTs the client-built Anthropic Messages API
+payload to the Supabase Edge Function `classify`, with the user's Supabase JWT
+as the `Authorization: Bearer` token.
+
+The Edge Function:
+
+1. Validates the JWT via `auth.getUser` (the function sets `verify_jwt = false` in
+   `config.toml` so the handler owns auth, but performs it explicitly).
+2. Enforces a per-user daily quota atomically via the Postgres function
+   `check_and_increment_quota` (table `usage_daily`, cap `DAILY_CALL_CAP`).
+3. Checks the requested model against an allowlist.
+4. Forwards the payload to `api.anthropic.com` using the owner's
+   `ANTHROPIC_API_KEY`, which is a server-side secret — it is never embedded in
+   the app.
+
+A 429 response means the user has hit their daily cap; the app surfaces this as
+"Daily limit reached (used/cap)". The response headers `x-quota-used` and
+`x-quota-cap` carry the current numbers.
+
+**Request flow:**
+
+```
+App (ClaudeClassifier) → POST /functions/v1/classify + Bearer <JWT>
+    ↓ Supabase Edge Function
+    → auth.getUser(JWT)          [validate caller]
+    → check_and_increment_quota  [atomic quota check, Postgres]
+    → POST api.anthropic.com/v1/messages + ANTHROPIC_API_KEY (server secret)
+    ↑ streamed/batched response back to app
+```
+
+### Server-side code
+
+The Supabase backend lives in `supabase/` at the repo root:
+
+| Path | Purpose |
+|---|---|
+| `supabase/migrations/0001_profiles_and_quota.sql` | `profiles` + `usage_daily` tables, `check_and_increment_quota` function |
+| `supabase/functions/classify/handler.ts` | Edge Function — auth, quota, proxy |
+| `supabase/functions/classify/index.ts` | Deno entry point |
+| `supabase/tests/quota_test.sql` | pgTAP quota unit tests |
+
+Deployment is automated by `.github/workflows/supabase-deploy.yml` (pushes to
+`main` deploy the Edge Function to the linked Supabase project).
+
 ## Local Servers, Ports, and File Paths
+
+Sign-in is required before any drop can be created (see Membership & Hosted
+Claude Proxy). Classification is routed through the Supabase hosted proxy
+(`https://dnybgtyvqflisttbhoqw.supabase.co/functions/v1/classify`) rather than
+calling Anthropic directly; no Anthropic API key is stored on-device.
 
 | Service | Port | Routes |
 |---|---|---|
@@ -206,7 +284,7 @@ shows a **user-confirmed** highlight over the best match. Not autopilot.
 - **Notch island**: borderless always-on-top chips; color/animation convey status; click to return.
 - **Alert levels** (`AlertLevel`): status changes are surfaced at calibrated loudness.
 - **Global hotkey** + **Services menu** for dropping on the frontmost app.
-- **Onboarding** (`OnboardingFlow`): guided first-run including permissions and integration setup.
+- **Onboarding** (`OnboardingFlow`): guided first-run including sign-in (required), permissions, and integration setup.
 - **Permissions**: Screen Recording, Accessibility, Automation/Apple Events.
 - **Settings → Integrations**: install/enable shell, Claude, Codex, and Chrome integrations; "Check for Updates…".
 
