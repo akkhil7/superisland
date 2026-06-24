@@ -46,6 +46,7 @@ struct OnboardingView: View {
     @ViewBuilder private var content: some View {
         switch step {
         case .welcome: WelcomeStepView()
+        case .signIn: SignInStepView()
         case .accessibility: AccessibilityStepView()
         case .integrations: IntegrationsStepView()
         case .finish: FinishStepView()
@@ -118,7 +119,25 @@ private struct WelcomeStepView: View {
     }
 }
 
-// MARK: - 2 · Accessibility
+// MARK: - 2 · Sign In
+
+private struct SignInStepView: View {
+    var body: some View {
+        VStack(spacing: 26) {
+            Text("Sign in to your account")
+                .font(.system(size: 28, weight: .bold))
+                .foregroundStyle(OnboardingTheme.heading)
+            Text("Connect your account to sync your clips across devices.")
+                .font(.system(size: 13))
+                .foregroundStyle(OnboardingTheme.body)
+                .multilineTextAlignment(.center)
+                .frame(maxWidth: 400)
+        }
+        .frame(maxWidth: .infinity)
+    }
+}
+
+// MARK: - 3 · Accessibility
 
 private struct AccessibilityStepView: View {
     @EnvironmentObject var permissions: PermissionsManager
@@ -168,7 +187,7 @@ private struct AccessibilityStepView: View {
     }
 }
 
-// MARK: - 3 · Integrations (all on one screen)
+// MARK: - 4 · Integrations (all on one screen)
 
 private struct IntegrationsStepView: View {
     @EnvironmentObject var settings: Settings
@@ -324,7 +343,7 @@ private struct IntegrationRow<Trailing: View>: View {
     }
 }
 
-// MARK: - 4 · Finish
+// MARK: - 5 · Finish
 
 private struct FinishStepView: View {
     @EnvironmentObject var settings: Settings
