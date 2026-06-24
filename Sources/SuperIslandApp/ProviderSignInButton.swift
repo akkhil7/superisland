@@ -24,7 +24,7 @@ struct ProviderSignInButton: View {
             .clipShape(RoundedRectangle(cornerRadius: 11, style: .continuous))
             .overlay(
                 RoundedRectangle(cornerRadius: 11, style: .continuous)
-                    .strokeBorder(Color.black.opacity(0.06))
+                    .strokeBorder(Color.black.opacity(0.15))
             )
             .shadow(color: .black.opacity(hovering ? 0.30 : 0.18), radius: hovering ? 11 : 6, y: 3)
             .scaleEffect(hovering ? 1.015 : 1)

@@ -599,11 +599,19 @@ struct MenuBarContent: View {
 
     var body: some View {
         if !auth.isSignedIn {
-            VStack(spacing: 8) {
-                Text("Sign in to use SuperIsland").font(.headline)
-                Button("Sign in…") { controller.showOnboarding() }
+            VStack(spacing: 13) {
+                Text("Sign in to use SuperIsland")
+                    .font(.system(size: 14, weight: .semibold))
+                VStack(spacing: 9) {
+                    ForEach(OAuthProvider.allCases, id: \.self) { provider in
+                        ProviderSignInButton(provider: provider) {
+                            auth.signIn(provider: provider)
+                        }
+                    }
+                }
             }
-            .padding(16)
+            .padding(18)
+            .frame(width: 320)
         } else {
             VStack(alignment: .leading, spacing: 8) {
                 HStack {
