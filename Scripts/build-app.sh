@@ -29,20 +29,23 @@ if [ -d "$ROOT/Extensions/Chrome" ]; then
     cp -R "$ROOT/Extensions/Chrome" "$RES/ChromeExtension"
 fi
 
+# Brand assets are vendored in the repo (Resources/Brand) so release/CI builds —
+# where the separate website/ checkout is absent — still get the icon and art.
+BRAND="$ROOT/Resources/Brand"
+
 # Onboarding art + brand fonts (fall back gracefully when absent).
 mkdir -p "$RES/Onboarding"
-for f in "$ROOT/website/assets/hero-aurora.webp" \
+for f in "$BRAND/hero-aurora.webp" \
          "$ROOT/Resources/Fonts/InstrumentSerif-Regular.ttf" \
          "$ROOT/Resources/Fonts/InstrumentSerif-Italic.ttf"; do
     [ -f "$f" ] && cp "$f" "$RES/Onboarding/" || true
 done
 
-# App icon (Finder / About / Settings) and the menu-bar mascot face.
-BRAND="$ROOT/website/branding/superisland"
-[ -f "$BRAND/macos/SuperIsland.icns" ] && cp "$BRAND/macos/SuperIsland.icns" "$RES/AppIcon.icns" || true
+# App icon (Finder / About / Settings) and the menu-bar colored face (no cape).
+[ -f "$BRAND/AppIcon.icns" ] && cp "$BRAND/AppIcon.icns" "$RES/AppIcon.icns" || true
 mkdir -p "$RES/Brand"
-[ -f "$BRAND/macos/menubar/superisland-menubar.png" ] && \
-    cp "$BRAND/macos/menubar/superisland-menubar.png" "$RES/Brand/superisland-menubar.png" || true
+[ -f "$BRAND/superisland-menubar.png" ] && \
+    cp "$BRAND/superisland-menubar.png" "$RES/Brand/superisland-menubar.png" || true
 
 # --- Embed Sparkle.framework -------------------------------------------------
 # SPM builds Sparkle into the bin dir; copy it into the bundle and point the

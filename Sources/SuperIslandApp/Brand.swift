@@ -3,8 +3,8 @@ import AppKit
 /// Loads SuperIsland's bundled brand assets (menu-bar mark, app icon).
 ///
 /// Assets are copied into the .app by `Scripts/build-app.sh`:
-///   • `Contents/Resources/AppIcon.icns`              — the app icon
-///   • `Contents/Resources/Brand/drop-menubar.png` — menu-bar mascot face
+///   • `Contents/Resources/AppIcon.icns`                  — the app icon
+///   • `Contents/Resources/Brand/superisland-menubar.png` — menu-bar colored face
 enum Brand {
     private static func brandURL(_ name: String) -> URL? {
         guard
@@ -15,11 +15,11 @@ enum Brand {
         return url
     }
 
-    /// The menu-bar mark — the SuperIsland mascot face. It's full-color (not a
-    /// template) so the purple/red eyes stay on-brand. Falls back to nil so
-    /// callers can use an SF Symbol.
+    /// The menu-bar mark — the SuperIsland colored face (cape removed). It's
+    /// full-color (not a template) so the purple/red eyes stay on-brand. Falls
+    /// back to nil so callers can use an SF Symbol.
     static var menuBarImage: NSImage? {
-        guard let url = brandURL("drop-menubar.png"),
+        guard let url = brandURL("superisland-menubar.png"),
             let image = NSImage(contentsOf: url)
         else { return nil }
         image.isTemplate = false

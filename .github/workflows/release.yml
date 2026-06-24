@@ -48,6 +48,9 @@ jobs:
           ID="$(security find-identity -v -p codesigning | awk -F'"' '/Developer ID Application/ {print $2; exit}')"
           echo "identity=$ID" >> "$GITHUB_OUTPUT"
 
+      - name: Install create-dmg (styled DMG window)
+        run: brew install create-dmg
+
       - name: Build, package, notarize, staple
         env:
           SUPERISLAND_SIGN_IDENTITY: ${{ steps.sign.outputs.identity }}

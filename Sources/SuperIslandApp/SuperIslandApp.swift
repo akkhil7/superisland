@@ -17,6 +17,7 @@ struct SuperIslandApp: App {
         } label: {
             if let mark = Brand.menuBarImage {
                 Image(nsImage: mark)
+                    .renderingMode(.original)
             } else {
                 Image(systemName: "pin.fill")
             }

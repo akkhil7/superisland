@@ -43,10 +43,30 @@ codesign --display --verbose=2 "$APP" 2>&1 | grep -q 'flags=.*runtime' \
 echo "Packaging ${DMG}..."
 rm -f "$DMG"
 STAGING="$(mktemp -d)"
-cp -R "$APP" "$STAGING/"
-ln -s /Applications "$STAGING/Applications"   # drag-to-install affordance
-hdiutil create -volname "SuperIsland" -srcfolder "$STAGING" \
-    -ov -format UDZO "$DMG"
+cp -R "$APP" "$STAGING/SuperIsland.app"
+BG="$ROOT/Resources/Brand/dmg-background.png"
+
+if command -v create-dmg >/dev/null 2>&1 && [ -f "$BG" ]; then
+    # Styled installer window: app icon on the left, arrow + "drag to
+    # Applications" background, Applications folder on the right.
+    create-dmg \
+        --volname "SuperIsland" \
+        --background "$BG" \
+        --window-pos 200 120 \
+        --window-size 600 400 \
+        --icon-size 120 \
+        --icon "SuperIsland.app" 150 190 \
+        --app-drop-link 450 190 \
+        --hide-extension "SuperIsland.app" \
+        --no-internet-enable \
+        "$DMG" "$STAGING"
+else
+    # Fallback (e.g. create-dmg not installed locally): plain drag layout.
+    echo "create-dmg not found — building a plain DMG (run 'brew install create-dmg' for the styled window)."
+    ln -s /Applications "$STAGING/Applications"
+    hdiutil create -volname "SuperIsland" -srcfolder "$STAGING" \
+        -ov -format UDZO "$DMG"
+fi
 rm -rf "$STAGING"
 
 # --- 4. Notarize -----------------------------------------------------------
