@@ -1,20 +1,30 @@
 # SuperIsland Architecture and Feature Map
 
-Generated: 2026-06-10 01:48:07 IST  
-Branch: `codex-restore-strategy`
+Updated: 2026-06-23 (supersedes the 2026-06-10 version, which predated the
+supported-app allowlist and the Claude Code / Codex agent integrations, and
+incorrectly renamed the `Drop` domain entity to "SuperIsland").
 
 ## Product Summary
 
-SuperIsland is a native macOS menu-bar app for bookmarking in-progress work.
+**SuperIsland** is a native macOS menu-bar app for bookmarking in-progress work.
+The captured bookmark is called a **drop**.
 
-The user can "drop a superisland" on the current app or browser tab, move on to other work, and later use the SuperIsland island or menu-bar list to return to the exact task. SuperIsland also monitors the target and updates status as the task moves between working, done, needs attention, stale, and unknown.
+The user "drops" on the current app or browser tab, moves on, and later uses the
+notch island or menu-bar list to return to the exact task. SuperIsland also
+monitors the target and updates its status: working, done, needs attention,
+stale, or unknown.
 
-The current strategy is:
+Unlike a generic window-bookmarker, SuperIsland only supports an **explicit
+allowlist of apps it has a real integration for** (see Supported Apps). Dropping
+on anything outside that set — or on a supported app whose integration isn't
+installed — is refused with a toast, because a drop with no status source would
+be a dead chip.
 
-1. Prefer strong integrations whenever available.
-2. Use app-specific adapters when they are reliable.
-3. Use generic visual guidance only for weak or unknown apps.
-4. Keep visual guidance suggestive and user-confirmed.
+Strategy, in priority order:
+
+1. Prefer strong, event-driven integrations (shell hooks, agent hooks/journals, Chrome extension).
+2. Use app-specific adapters for precise refocus (Terminal, iTerm, editors).
+3. Use generic visual guidance only as a user-confirmed fallback within supported apps.
 
 ## High-Level Architecture
 
@@ -22,446 +32,217 @@ The current strategy is:
 flowchart TD
     User["User"] --> UI["Menu Bar + Notch Island + Settings"]
     UI --> AppController["AppController"]
-    AppController --> Store["SuperIslandStore"]
+    AppController --> Store["DropStore"]
+    AppController --> Gate["SupportedApps / RequiredIntegration gate"]
     AppController --> Capture["CaptureService"]
     AppController --> Monitor["Monitor + ChangeDetector"]
-    AppController --> Refocuser["Refocuser"]
-    AppController --> Shell["ShellServer + ShellIntegration"]
-    AppController --> Chrome["ChromeBridgeServer + ChromeIntegration"]
-    AppController --> Restore["RestoreGuidanceManager"]
+    AppController --> Refocuser["Refocus adapters"]
+    AppController --> ShellSrv["ShellServer :2929"]
+    AppController --> ChromeSrv["ChromeBridgeServer :2931"]
+    AppController --> Restore["RestoreGuidance (visual)"]
 
-    Monitor --> Classifier["Classifier / Claude API"]
-    Capture --> AX["Accessibility Text"]
-    Capture --> Screenshot["ScreenCaptureKit Screenshot"]
+    Monitor --> Classifier["Classifier / Claude API (weak apps)"]
 
-    Shell --> ShellHook["zsh/bash Hook"]
-    Chrome --> NativeHost["SuperIslandChromeNativeHost"]
-    NativeHost --> Extension["Chrome Extension"]
-    Extension --> Tabs["Chrome Tabs + DOM + MutationObserver"]
+    ShellSrv --> ShellHook["zsh/bash hook  (/shell)"]
+    ShellSrv --> ClaudeHook["Claude Code hook  (/claude)"]
+    ShellSrv --> CodexWatch["Codex rollout-journal watcher  (/codex + file tail)"]
 
-    Refocuser --> Strong["Strong Locators"]
-    Refocuser --> Visual["Visual Guidance Fallback"]
-    Restore --> Visual
+    ChromeSrv --> NativeHost["SuperIslandChromeNativeHost"]
+    NativeHost --> Extension["Chrome Extension (MV3)"]
+    Extension --> Tabs["Tabs + DOM + MutationObserver"]
+
+    Refocuser --> Strong["Deep links / TTY / tab id"]
+    Refocuser --> Visual["Visual guidance fallback"]
 ```
 
 ## Code Layout
 
-### `Sources/SuperIslandCore`
+### `Sources/SuperIslandCore` — pure, testable domain logic (no AppKit)
 
-Pure Swift domain and protocol logic.
+- `Models.swift`: `Drop`, `DropStatus`, `WindowTarget`, `Locator`, `StatusEvent`, `ChromeTaskAnchor`.
+- `DropStore.swift`: owns the drop list, persistence (JSON), ordering, status updates.
+- `DropSource.swift`: a drop's origin badge (so the same app can show where the drop came from).
+- `AlertLevel.swift`: how loudly a status change is announced (each level has one primary cue).
+- `ChangeDetector.swift`: change-then-settle gating before evaluation.
+- `Classifier.swift` + `ClaudeTranscript.swift`: Claude-backed status classification and transcript-tail parsing.
+- `IntegrationRouter.swift`: classifies a drop's locator as `strong` / `appSpecific` / `generic`, and whether visual restore is allowed.
+- `SupportedApps.swift`: the fixed allowlist + `RequiredIntegration` mapping (chrome / shell / claude / codex).
+- `ClaudeHookSupport.swift` / `CodexHookSupport.swift`: event→status mapping, settings.json surgery (Claude), rollout-journal parsing (Codex), deep links.
+- `AgentTerminalSupport.swift`: detects when a terminal is running an agent CLI (claude/codex) for labeling.
+- `ChromeBridgeProtocol.swift` / `ChromeBridgeStateStore.swift` / `ChromeNativeHostManifest.swift` / `ChromeExtensionIdentity.swift`: Chrome bridge tools, in-memory tab state, native-host manifest generation, extension-ID derivation.
+- `ShellHookScriptBuilder.swift`: generates the zsh/bash hook scripts and rc source blocks.
+- `RestoreMemory.swift`: encrypted visual-restore memory model + anchor matching.
+- `ContentURL.swift`: web-content URL comparison used as tab identity.
+- `OnboardingFlow.swift`: ordered first-run steps (UI lives in the app target).
+- `Hotkey*` (`HotkeyMatcher`, `HotkeyShortcutPolicy`, `HotkeyRegistrationDiagnostic`): global-hotkey logic.
 
-- `Models.swift`: core entities such as `SuperIsland`, `WindowTarget`, `Locator`, `SuperIslandStatus`, and `StatusEvent`.
-- `SuperIslandStore.swift`: owns the superisland list, persistence, ordering, and status updates.
-- `ChangeDetector.swift`: detects changes and settle periods before evaluation.
-- `Classifier.swift`: Claude-backed status classification and response parsing.
-- `Backoff.swift`: retry/backoff policy.
-- `IntegrationRouter.swift`: decides which locator types are strong and which allow visual restore.
-- `ChromeBridgeProtocol.swift`: JSON-RPC-style tools, responses, events, tab state, DOM summaries.
-- `ChromeBridgeStateStore.swift`: in-memory bridge state for Chrome tabs, DOM summaries, statuses, and queued commands.
-- `ChromeNativeHostManifest.swift`: generates Chrome native messaging host manifests.
-- `RestoreMemory.swift`: local restore memory model and visual anchor matching.
-- `ShellHookScriptBuilder.swift`: generates zsh and bash shell hook scripts.
+### `Sources/SuperIslandApp` — the macOS app
 
-### `Sources/SuperIslandApp`
-
-macOS app implementation.
-
-- `SuperIslandApp.swift`: app entry point, menu-bar extra, settings scene, and environment wiring.
-- `AppController.swift`: central coordinator for dropping superislands, monitoring, shell events, Chrome bridge state, restore memory, and refocus.
-- `Views.swift`: menu, settings, onboarding, superisland list, and integration UI.
-- `NotchIsland.swift`: floating notch-style island window.
-- `Adapters.swift`: generic, Chrome, Terminal, iTerm, shell, and refocus adapters.
-- `CaptureService.swift`: Accessibility and screenshot capture.
-- `Monitor.swift`: periodic and change-driven status evaluation.
-- `Permissions.swift`: Screen Recording, Accessibility, and Automation permission helpers.
-- `Settings.swift`: persisted app settings.
-- `HotkeyService.swift`: global hotkey support.
-- `ServicesProvider.swift`: macOS Services integration.
-- `ShellServer.swift`: local HTTP receiver for shell events.
-- `ShellIntegration.swift`: installs zsh/bash scripts and source blocks.
-- `ChromeBridgeServer.swift`: local HTTP bridge used by the native host.
-- `ChromeIntegration.swift`: Chrome extension and native host setup helper.
-- `RestoreVisual.swift`: encrypted visual restore memory, AX/OCR anchors, and highlight overlay.
+- `SuperIslandApp.swift`: entry point, `MenuBarExtra`, Settings scene, Sparkle updater wiring.
+- `AppController.swift`: central coordinator (drop, monitor, shell/agent events, Chrome bridge, restore, refocus).
+- `Adapters.swift`: Chrome, Terminal, iTerm, Editor (Cursor/VS Code), and generic adapters + refocus.
+- `ClaudeIntegration.swift` / `CodexIntegration.swift`: install/observe the agent integrations.
+- `ShellServer.swift`: local HTTP receiver on `:2929`, routing `/shell`, `/claude`, `/codex`.
+- `ShellIntegration.swift`: installs zsh/bash hooks into `~/.config/superisland/` + rc source blocks.
+- `ChromeBridgeServer.swift` (`:2931`) / `ChromeIntegration.swift`: bridge server + extension/native-host setup.
+- `Monitor.swift`, `CaptureService.swift`, `Permissions.swift`, `Settings.swift`, `HotkeyService.swift`, `ServicesProvider.swift`.
+- `NotchIsland.swift`, `Views.swift`, `AlertBannerHost.swift`, `Onboarding/`: UI surfaces.
+- `RestoreVisual.swift`: encrypted visual memory (AX/OCR anchors) + highlight overlay.
+- `HookDebugLog.swift`: diagnostic log at `~/.config/superisland/hook-debug.log`.
 
 ### `Sources/SuperIslandChromeNativeHost`
 
-Chrome native messaging helper.
+Native-messaging helper: reads length-prefixed JSON from Chrome, forwards to
+`http://127.0.0.1:2931/chrome`, polls for queued commands (e.g. `chrome.refocus_tab`),
+and returns responses to the extension.
 
-- Reads length-prefixed JSON messages from Chrome.
-- Forwards them to SuperIsland over `http://127.0.0.1:2931/chrome`.
-- Polls SuperIsland for queued commands such as `chrome.refocus_tab`.
-- Sends responses back to the extension using Chrome native messaging framing.
+### `Extensions/Chrome` — Manifest V3 extension
 
-### `Extensions/Chrome`
-
-Manifest V3 Chrome extension.
-
-- `manifest.json`: extension permissions and content script registration.
-- `background.js`: owns native messaging connection, tab state capture, refocus commands, and polling.
-- `content.js`: captures DOM summaries and observes page changes with `MutationObserver`.
-- `README.md`: developer install notes.
-- `native-host-manifest.template.json`: template used by native host setup.
-
-### `Tests`
-
-Swift unit and integration tests for routing, persistence, Chrome bridge behavior, restore matching, shell script generation, syntax validation, and extension asset packaging.
+`manifest.json` (pins the extension ID via the `key` field), `background.js`
+(native messaging, tab-state capture, refocus, 1s command poll), `content.js`
+(DOM summary + `MutationObserver` task hints).
 
 ## Domain Model
 
-### SuperIsland
+- **`Drop`**: `id`, `createdAt`, `label`, `target`, `status`, `lastChecked`, `history`, optional `restoreMemoryID`, source.
+- **`WindowTarget`**: bundle id, app name, pid, CG window id, title snapshot, `Locator`.
+- **`Locator`** (drives restore): `generic`, `chrome`, `terminal`, `iterm`, `shell`, **`editor`**.
+- **`DropStatus`**: working / done / needsAttention / stale / unknown.
 
-A `SuperIsland` stores:
+## Supported Apps (allowlist + integration gating)
 
-- `id`
-- `createdAt`
-- `label`
-- `target`
-- `status`
-- `lastChecked`
-- `history`
-- optional `restoreMemoryID`
+`SupportedApps.bundleIDs` is the complete set; `RequiredIntegration` says what
+each one needs. Dropping a supported app whose integration isn't installed is
+refused with a toast, same as an unsupported app.
 
-### WindowTarget
+| App | Bundle ID | Required integration |
+|---|---|---|
+| Chrome / Chrome Canary / Brave | `com.google.Chrome`, `…Chrome.canary`, `com.brave.Browser` | `chrome` (extension bridge) |
+| Terminal / iTerm2 | `com.apple.Terminal`, `com.googlecode.iterm2` | `shell` (hooks) |
+| Cursor / VS Code | `EditorApp.cursor`, `EditorApp.vsCode` | `shell` (integrated-terminal hooks) |
+| Claude Desktop | `com.anthropic.Claude` | `claude` (Claude Code hooks) |
+| Codex | `com.openai.codex` | `codex` (rollout-journal watcher) |
 
-A `WindowTarget` stores the captured app/window identity:
+## Integration Routing
 
-- bundle ID
-- app name
-- pid
-- CG window ID
-- window title snapshot
-- locator
+`IntegrationRouter.strength(locator:bundleID:)`:
 
-### Locator
+- **strong** — `.shell`, `.chrome` (and a Chrome bundle with a generic locator).
+- **appSpecific** — `.terminal`, `.iterm`, `.editor` (+ those bundles).
+- **generic** — everything else; the only tier where `allowsVisualRestore` is true.
 
-`Locator` is the key to restore behavior.
+## Drop Flow
 
-- `generic`: fallback Accessibility/window target.
-- `chrome`: rich Chrome locator with window ID, window index, tab index, tab ID, URL, title, document ID, and optional task anchor.
-- `terminal`: Terminal.app-specific locator.
-- `iterm`: iTerm-specific locator.
-- `shell`: terminal-agnostic TTY locator from shell integration.
+1. User triggers Drop (notch island, menu bar, hotkey, or Services menu).
+2. `AppController.createDrop()` checks `SupportedApps` / `RequiredIntegration`; an
+   unsupported app or missing integration is refused with a toast.
+3. Adapters identify the frontmost target and return a `WindowTarget` with the
+   strongest available `Locator`.
+4. For a generic locator with visual memory enabled, restore memory is captured
+   (screenshot, window bounds, AX anchors, Vision OCR boxes), encrypted locally.
+5. `DropStore` persists the drop; the island and menu list update immediately.
 
-## Integration Priority
+## Status / Monitoring by Integration
 
-SuperIsland restores and monitors in this order:
+**Shell / terminal (`:2929` `/shell`).** Hooks `superisland.zsh` / `superisland.bash`
+in `~/.config/superisland/` capture the TTY and POST `register` / `start` / `done`
+(command, exit code, duration). Exit 0 → done; non-zero → needs attention. Works
+across Terminal, iTerm, Warp, and editor integrated terminals because the signal
+comes from the shell. Refocus matches the saved TTY to a window/pane via AppleScript.
 
-1. Shell/terminal integration: TTY plus shell start/done events.
-2. Chrome extension integration: tab identity, DOM state, task signals, and browser commands.
-3. App-specific adapters: Terminal, iTerm, and future native adapters.
-4. Generic visual guidance fallback: only for apps without a strong integration.
+**Claude Code (`:2929` `/claude`).** Installs `superisland-claude-hook.sh` and
+registers it in `~/.claude/settings.json` (marker `superisland-claude-hook`) for
+7 lifecycle events. `UserPromptSubmit`/`PreToolUse`/`PostToolUse` → working,
+`Stop` → done, permission `Notification` → needs attention. Ambiguous turn-ends
+are resolved from the transcript tail (`~/.claude/projects/…/<id>.jsonl`), using
+Haiku when an API key is set, else a structural heuristic. Refocus via
+`claude://session/<id>`.
 
-`IntegrationRouter` enforces this:
+**Codex (`:2929` `/codex` + file watching).** The Codex desktop app ignores
+hooks, so SuperIsland tails its rollout journals
+(`~/.codex/sessions/<y>/<m>/<d>/rollout-<ts>-<id>.jsonl`): `task_started` / `*_begin`
+→ working, `task_complete` → done, "approval" events → needs attention. A drop is
+bound to a session via `~/.codex/.codex-global-state.json` → `active-workspace-roots`.
+Refocus via `codex://threads/<id>`.
 
-- Shell and Chrome are strong integrations.
-- Terminal and iTerm are app-specific integrations.
-- Generic locators are the only locators that allow visual restore by default.
+**Chrome (`:2931`).** Extension → native host → `ChromeBridgeServer` →
+`ChromeBridgeStateStore`. The extension captures tab identity + a DOM summary
+(keyword heuristic for working/done/error) and a `MutationObserver` reports
+changes. MCP-style tools: `chrome.list_tabs`, `chrome.capture_active_tab_state`,
+`chrome.capture_tab_dom_summary`, `chrome.refocus_tab`, `chrome.observe_tab_task`,
+`chrome.get_tab_status`. Refocus queues `chrome.refocus_tab` (the native host
+polls); fallback is AppleScript, then generic window raise.
 
-## Drop SuperIsland Flow
+**Editor (Cursor / VS Code).** App-specific adapter: status comes from the
+integrated terminal's shell hooks; restore uses file path + workspace, or the
+terminal TTY when that's what's focused.
 
-1. User triggers Drop SuperIsland from the island, menu bar, hotkey, or Services menu.
-2. `AppController.dropSuperIsland()` asks adapters to identify the frontmost target.
-3. The adapter returns a `WindowTarget` with the best available `Locator`.
-4. If the locator is generic and visual memory is enabled, SuperIsland captures restore memory:
-   - screenshot at T0
-   - window bounds
-   - Accessibility element anchors
-   - focused or selected controls where available
-   - Vision OCR text boxes
-5. SuperIsland persists the new item through `SuperIslandStore`.
-6. The island and menu-bar list update immediately.
+**Generic visual restore.** Only for `generic`-strength drops. At drop time it
+stores AES-GCM-encrypted memory (window bounds, AX anchors, OCR boxes; key in
+Keychain) at `~/Library/Application Support/SuperIsland/RestoreMemory/<id>.droprestore`.
+On return it raises the window, scores current anchors vs. the saved set, and
+shows a **user-confirmed** highlight over the best match. Not autopilot.
 
-## Monitoring Flow
+## Local Servers, Ports, and File Paths
 
-### Generic and Weak Apps
+| Service | Port | Routes |
+|---|---|---|
+| `ShellServer` | **2929** | `/shell`, `/claude`, `/codex` |
+| `ChromeBridgeServer` | **2931** | `/chrome` (events + tool calls) |
 
-1. `Monitor` periodically evaluates superislands.
-2. `CaptureService` captures Accessibility text and optionally a screenshot.
-3. `ChangeDetector` waits for a change-then-settle transition.
-4. `Classifier` uses the configured Claude API key when available.
-5. SuperIsland status updates to working, done, needs attention, stale, or unknown.
-
-### Shell-Backed Terminal SuperIslands
-
-Shell superislands bypass AI polling.
-
-1. The installed zsh/bash hook registers the shell session and TTY.
-2. When a command starts, the hook sends `start` to SuperIsland's local shell server.
-3. SuperIsland marks the superisland working and uses the command as the label.
-4. When the command exits, the hook sends `done` with exit code and duration.
-5. SuperIsland marks the superisland done for exit code 0, or needs attention for non-zero exit codes.
-
-This works across Terminal.app, iTerm, Warp, and other terminal apps because the signal comes from the shell, not the terminal UI.
-
-### Chrome SuperIslands
-
-Chrome superislands use the extension/native bridge path.
-
-1. The Chrome extension captures tab state:
-   - Chrome window ID
-   - tab ID
-   - tab index
-   - title
-   - URL
-   - active state
-2. Content scripts capture DOM summaries and task status hints.
-3. MutationObserver notices DOM changes and response-completion-like events.
-4. The extension sends events to `SuperIslandChromeNativeHost` through native messaging.
-5. The native host forwards messages to `ChromeBridgeServer`.
-6. `ChromeBridgeStateStore` updates tab state, DOM summaries, task status, and queued commands.
-
-## Chrome Bridge Tools
-
-The bridge models MCP-style tools and resources:
-
-- `chrome.list_tabs`
-- `chrome.capture_active_tab_state`
-- `chrome.capture_tab_dom_summary`
-- `chrome.refocus_tab`
-- `chrome.observe_tab_task`
-- `chrome.get_tab_status`
-
-The current app uses this bridge internally. It is shaped so it can grow into a more formal MCP-facing server without changing the Chrome extension contract.
-
-## Chrome Refocus Flow
-
-1. SuperIsland tries the Chrome extension first.
-2. If the extension is connected, SuperIsland queues a `chrome.refocus_tab` command.
-3. The native host polls SuperIsland for commands.
-4. The extension receives the command and uses Chrome APIs to focus the correct window and tab.
-5. If the extension path is unavailable, SuperIsland falls back to AppleScript.
-6. If AppleScript fails, SuperIsland falls back to generic Accessibility/window raising.
-
-## Shell Refocus Flow
-
-1. Shell hooks report a TTY such as `/dev/ttys003`.
-2. SuperIsland stores the TTY in `Locator.shell`.
-3. Clicking the superisland asks `ShellAdapter` to refocus by TTY.
-4. For iTerm and Terminal.app, AppleScript attempts exact pane/window selection by TTY.
-5. If exact selection is unavailable, SuperIsland falls back to raising the matching terminal window.
-
-## Generic Visual Guidance Flow
-
-Visual guidance is only used for generic or weak integrations.
-
-1. At T0, SuperIsland stores encrypted restore memory locally.
-2. On return, SuperIsland first raises the saved window.
-3. SuperIsland compares current visible AX/OCR anchors against the T0 memory.
-4. SuperIsland chooses the best visible match.
-5. SuperIsland displays a highlight overlay over the likely anchor.
-6. The user confirms before SuperIsland clicks or treats the suggestion as accepted.
-
-This is intentionally not a full autopilot. It is a safe fallback for apps where SuperIsland does not have reliable tab, pane, or document APIs.
-
-## Local Privacy and Storage
-
-SuperIsland stores normal app data locally as JSON through `SuperIslandStore`.
-
-Generic restore memory is encrypted locally with AES-GCM. The encryption key is stored in Keychain. Restore memory is only captured when:
-
-- the target has a generic or weak locator,
-- visual restore memory is enabled in Settings,
-- the app can capture enough local context.
-
-Chrome and shell-backed terminal superislands do not use visual memory unless their strong integration fails and the app behavior is explicitly routed there in the future.
+| Path | Purpose |
+|---|---|
+| `~/.config/superisland/superisland.zsh` / `.bash` | shell hooks |
+| `~/.config/superisland/superisland-claude-hook.sh` | Claude Code hook |
+| `~/.config/superisland/hook-debug.log` | hook delivery diagnostics |
+| `~/.claude/settings.json` | Claude hook registration |
+| `~/.codex/sessions/…/rollout-*.jsonl`, `.codex-global-state.json` | Codex status + focus |
+| `~/Library/Application Support/Google/Chrome/NativeMessagingHosts/com.superisland.chrome_bridge.json` | native host manifest |
+| `~/Library/Application Support/SuperIsland/` | drop store JSON + encrypted restore memory |
 
 ## User-Facing Features
 
-### Menu Bar App
+- **Menu-bar agent** (no Dock icon): active drops, status, refocus, rename/dismiss, settings.
+- **Notch island**: borderless always-on-top chips; color/animation convey status; click to return.
+- **Alert levels** (`AlertLevel`): status changes are surfaced at calibrated loudness.
+- **Global hotkey** + **Services menu** for dropping on the frontmost app.
+- **Onboarding** (`OnboardingFlow`): guided first-run including permissions and integration setup.
+- **Permissions**: Screen Recording, Accessibility, Automation/Apple Events.
+- **Settings → Integrations**: install/enable shell, Claude, Codex, and Chrome integrations; "Check for Updates…".
 
-- SuperIsland runs as a menu-bar agent.
-- It has no Dock icon.
-- The menu-bar dropdown shows active superislands, status, refocus actions, rename/dismiss actions, and settings.
+## Distribution & CI/CD
 
-### Notch Island
-
-- A custom borderless always-on-top window appears near the notch area.
-- SuperIsland chips show status through color and animation.
-- Clicking a chip returns to the superisland target.
-- The island is the primary lightweight status surface.
-
-### Global Hotkey
-
-- A configurable global hotkey drops a superisland on the current frontmost app.
-- The default behavior is controlled through app settings.
-
-### Services Menu
-
-- SuperIsland registers a macOS Services item so users can drop a superisland from supported app contexts.
-
-### Permissions
-
-SuperIsland guides the user through:
-
-- Screen Recording
-- Accessibility
-- Automation / Apple Events
-
-These permissions are needed for screenshots, AX inspection, and app-specific refocus.
-
-### Claude Classification
-
-When an API key is configured, SuperIsland can send captured context to Claude for final status classification.
-
-When no API key is available, SuperIsland avoids crashing and uses local heuristics where possible.
-
-### Shell Integration
-
-Settings includes a Shell Integration section.
-
-Supported behavior:
-
-- Install zsh hook.
-- Install bash hook.
-- Append source blocks to shell startup files.
-- Uninstall source blocks and hook files.
-- Show installed state.
-- Show active session count.
-
-The shell hook sends local HTTP events to SuperIsland on command start and command completion.
-
-### Chrome Integration
-
-Settings includes a Chrome Extension section.
-
-Supported behavior:
-
-- Reveal the bundled extension folder.
-- Open `chrome://extensions`.
-- Store or update the extension ID.
-- Install/uninstall the native host manifest.
-- Show bridge connection state.
-
-Chrome integration provides stronger restore than screenshots because it can use browser-native tab identity and DOM signals.
-
-### Visual Restore for Other Apps
-
-Settings includes an Other Apps visual restore option.
-
-When enabled, generic apps get local encrypted visual memory and a user-confirmed highlight when returning.
-
-## Chrome Extension Installation Flow
-
-1. Build the app so the bundled extension exists:
-
-   ```sh
-   ./Scripts/build-app.sh debug
-   ```
-
-2. Open Chrome Extensions:
-
-   ```text
-   chrome://extensions
-   ```
-
-3. Enable Developer Mode.
-
-4. Click "Load unpacked".
-
-5. Select:
-
-   ```text
-   /Users/akhil/superisland/.build/SuperIsland.app/Contents/Resources/ChromeExtension
-   ```
-
-6. Copy the loaded extension ID.
-
-7. Open SuperIsland Settings, go to Integrations, paste/update the Chrome extension ID.
-
-8. Click Install Native Host.
-
-9. Restart or reload the extension if needed.
-
-When connected, the Chrome section in Settings should show the bridge as connected.
-
-## Shell Integration Setup Flow
-
-1. Open SuperIsland Settings.
-2. Go to Integrations.
-3. Click Set Up Shell Integration.
-4. Open a new terminal session.
-5. Drop a superisland on a terminal.
-6. Run a command.
-7. SuperIsland should update the status instantly when the command exits.
+- **Repo**: github.com/akkhil7/superisland (public). **Auto-update**: Sparkle 2.x;
+  appcast at `https://akkhil7.github.io/superisland/appcast.xml`.
+- **CI** (`.github/workflows/ci.yml`): secret-free gate on PR/main (build, test,
+  SwiftLint + swift-format strict, ad-hoc signing dry-run) on `macos-15`.
+- **Release** (`.github/workflows/release.yml`): push tag `vX.Y.Z` →
+  version-inject → Developer ID sign (incl. embedded Sparkle.framework and the
+  secondary `SuperIslandChromeNativeHost`, hardened runtime) → notarize + staple
+  (`Scripts/package-dmg.sh`) → Sparkle-sign the DMG → GitHub Release → append
+  appcast item on the `gh-pages` branch. First release: v0.1.0.
 
 ## Build and Run
 
-Build package:
-
 ```sh
-swift build
+swift build           # build package
+swift test            # 138 tests
+Scripts/build-app.sh release   # assemble .build/SuperIsland.app (Developer ID or ad-hoc)
+open .build/SuperIsland.app
 ```
-
-Run tests:
-
-```sh
-swift test
-```
-
-Build app bundle:
-
-```sh
-./Scripts/build-app.sh debug
-```
-
-Run the app:
-
-```sh
-open /Users/akhil/superisland/.build/SuperIsland.app
-```
-
-## Test Coverage
-
-Current verification passed:
-
-- `swift test`: 35 tests, 0 failures.
-- `node --check Extensions/Chrome/background.js`
-- `node --check Extensions/Chrome/content.js`
-- `./Scripts/build-app.sh debug`
-
-Covered areas include:
-
-- Integration routing.
-- Shell and Chrome bypassing visual restore.
-- Chrome locator persistence.
-- Chrome bridge request/response parsing.
-- Chrome bridge state store behavior.
-- Native host manifest generation.
-- Chrome extension assets packaged into the app bundle.
-- Restore matcher behavior.
-- Visual matcher restricted to generic locators.
-- Shell hook generation.
-- zsh and bash syntax validation for generated hook scripts.
-- SuperIsland store persistence.
-- Classifier parsing.
-- Backoff behavior.
-
-## Current Assumptions
-
-- SuperIsland's native side is the MCP-shaped server boundary.
-- The Chrome extension is the browser sensor and actuator.
-- The native host is the Chrome-native-messaging bridge into SuperIsland.
-- Visual guidance is a fallback, not the main restore mechanism.
-- Shell integration remains the source of truth for terminal task completion.
-- Chrome is the next strong integration after terminal/shell.
 
 ## Known Gaps and Next Steps
 
-- Chrome extension installation is still a developer-style unpacked extension flow.
-- Chrome native host setup depends on the user-provided extension ID.
-- Manual Chrome end-to-end testing still needs the extension loaded in Chrome.
-- DOM task detection is heuristic and should become more site-specific for Claude, Codex, ChatGPT, CI dashboards, and deploy tools.
-- Visual restore is currently a visible-anchor suggestion system, not a multi-step navigation planner.
+- Chrome extension is still a developer-style unpacked install.
+- DOM/agent task detection is heuristic; could become more site/agent-specific.
+- Visual restore is a single-anchor suggestion, not a multi-step navigator.
 - App-level UI automation tests are not yet in place.
-- More strong adapters can be added later for Safari, VS Code, Slack, Linear, Notion, and other high-value apps.
+- More strong adapters possible later (Safari, Slack, Linear, Notion, …).
+- CI actions (`checkout@v4`, `import-codesign-certs@v3`) still target Node 20 (deprecation warning).
 
 ## Design Principle
 
-SuperIsland should feel seamless because it uses the best available truth source for each app:
-
-- Shells tell SuperIsland when commands start and finish.
-- Chrome tells SuperIsland which tab and DOM state matter.
-- Native app adapters tell SuperIsland how to return precisely.
-- Generic visual guidance helps only when no stronger signal exists.
-
-That keeps the product powerful without making every app depend on brittle screenshots or speculative automation.
+SuperIsland feels seamless because it uses the best available truth source per
+app — shells report command start/finish, agent hooks/journals report turn
+state, Chrome reports tab/DOM state, app adapters return precisely, and visual
+guidance helps only when nothing stronger exists.
