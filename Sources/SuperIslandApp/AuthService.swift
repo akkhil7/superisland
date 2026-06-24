@@ -47,7 +47,7 @@ final class AuthService: NSObject, ObservableObject {
                 }
             }
             web.presentationContextProvider = self
-            web.prefersEphemeralWebBrowserSession = false
+            web.prefersEphemeralWebBrowserSession = true
             self.webSession = web
             web.start()
         }

@@ -50,9 +50,6 @@ public enum ClassifierProtocolBuilder {
     /// the app exposes this in Settings so the user can pick a cheaper model
     /// (e.g. `claude-haiku-4-5`) for high-frequency checks.
     public static let defaultModel = "claude-haiku-4-5"
-    public static let apiVersion = "2023-06-01"
-    public static let endpoint = URL(string: "https://api.anthropic.com/v1/messages")!
-
     public static let systemPrompt = """
         You monitor a single application window on a user's Mac to tell them when a \
         long-running task needs them. Classify the window's CURRENT state into exactly one of:
@@ -237,12 +234,10 @@ public enum ClassifierProtocolBuilder {
     }
 }
 
-/// Live classifier. In `.direct` mode it talks to Anthropic with an API key;
-/// in `.proxy` mode it talks to the SuperIsland Edge Function with a Supabase
+/// Live classifier. Talks to the SuperIsland Edge Function with a Supabase
 /// bearer token (the function injects the Anthropic key server-side).
 public struct ClaudeClassifier: Sendable {
     public enum Auth: Sendable {
-        case direct(apiKey: String)
         case proxy(url: URL, bearer: String)
     }
 
@@ -251,12 +246,6 @@ public struct ClaudeClassifier: Sendable {
 
     public init(auth: Auth, model: String = ClassifierProtocolBuilder.defaultModel) {
         self.auth = auth
-        self.model = model
-    }
-
-    /// Back-compat shim used during migration; a present key maps to `.direct`.
-    public init(apiKey: String?, model: String = ClassifierProtocolBuilder.defaultModel) {
-        self.auth = .direct(apiKey: apiKey ?? "")
         self.model = model
     }
 
@@ -304,27 +293,16 @@ public struct ClaudeClassifier: Sendable {
     }
 
     private func buildRequest(_ body: [String: Any]) throws -> URLRequest {
-        let url: URL
         switch auth {
-        case .direct: url = ClassifierProtocolBuilder.endpoint
-        case .proxy(let proxyURL, _): url = proxyURL
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.timeoutInterval = 20
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        switch auth {
-        case .direct(let key):
-            guard !key.isEmpty else { throw ClassifierError.missingAPIKey }
-            request.setValue(key, forHTTPHeaderField: "x-api-key")
-            request.setValue(
-                ClassifierProtocolBuilder.apiVersion,
-                forHTTPHeaderField: "anthropic-version")
-        case .proxy(_, let bearer):
+        case .proxy(let proxyURL, let bearer):
             guard !bearer.isEmpty else { throw ClassifierError.missingAPIKey }
+            var request = URLRequest(url: proxyURL)
+            request.httpMethod = "POST"
+            request.timeoutInterval = 20
+            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
             request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+            request.httpBody = try JSONSerialization.data(withJSONObject: body)
+            return request
         }
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-        return request
     }
 }

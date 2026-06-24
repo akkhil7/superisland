@@ -68,9 +68,8 @@ final class SuperIslandMonitor: ObservableObject {
         let now = Date()
         for drop in store.drops where drop.status != .stale {
             // Terminal drops are owned by shell hook / agent events, never AI.
-            // Classifying one with no API key is what produced the bogus
-            // "No API key" status; without shell integration they simply have
-            // no live status (still fine as click-to-return bookmarks).
+            // Without shell integration they simply have no live status
+            // (still fine as click-to-return bookmarks).
             switch drop.target.locator {
             case .shell, .terminal, .iterm: continue
             default: break

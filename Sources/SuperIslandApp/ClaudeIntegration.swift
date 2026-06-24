@@ -179,16 +179,21 @@ final class ClaudeIntegration: ObservableObject {
     ) async -> (status: DropStatus, reason: String)? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        if let bearer, !bearer.isEmpty,
-            let verdict = try? await ClaudeClassifier(
-                auth: .proxy(url: BackendConfig.classifyURL, bearer: bearer),
-                model: ClassifierProtocolBuilder.defaultModel
-            ).classifyTurnEndMessage(trimmed)
-        {
-            switch verdict.status {
-            case .needsAttention: return (.needsAttention, verdict.reason)
-            case .working: return (.working, "Claude is working…")
-            default: return (.done, verdict.reason)
+        if let bearer, !bearer.isEmpty {
+            do {
+                let verdict = try await ClaudeClassifier(
+                    auth: .proxy(url: BackendConfig.classifyURL, bearer: bearer),
+                    model: ClassifierProtocolBuilder.defaultModel
+                ).classifyTurnEndMessage(trimmed)
+                switch verdict.status {
+                case .needsAttention: return (.needsAttention, verdict.reason)
+                case .working: return (.working, "Claude is working…")
+                default: return (.done, verdict.reason)
+                }
+            } catch let ClassifierError.quotaExceeded(used, cap) {
+                return (.unknown, "Daily limit reached (\(used)/\(cap))")
+            } catch {
+                // transport/other error — fall through to the structural heuristic below
             }
         }
         return ClaudeTranscript.looksLikeRequest(trimmed)
