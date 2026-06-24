@@ -2,9 +2,9 @@ import Foundation
 import SuperIslandCore
 import ServiceManagement
 
-/// User preferences, backed by UserDefaults. The API key lives in Keychain
-/// (see Keychain.swift) and is not exposed in Settings UI — key distribution
-/// is handled externally for the shipped product.
+/// User preferences, backed by UserDefaults. The Anthropic API key now lives
+/// server-side (the hosted classify proxy); classification is gated behind the
+/// signed-in user's bearer token rather than a local Keychain entry.
 @MainActor
 final class Settings: ObservableObject {
     private let defaults = UserDefaults.standard
@@ -107,5 +107,4 @@ final class Settings: ObservableObject {
         defaults.set(hotkeyModifiers, forKey: Keys.hotkeyModifiers)
     }
 
-    func apiKey() -> String? { Keychain.apiKey() }
 }

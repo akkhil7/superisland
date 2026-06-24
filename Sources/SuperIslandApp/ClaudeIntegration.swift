@@ -154,10 +154,10 @@ final class ClaudeIntegration: ObservableObject {
 
     /// Classify a Claude session's current state from its transcript tail:
     /// `.working` when a tool is mid-flight, otherwise — for an ended turn —
-    /// done vs needsAttention. Uses Haiku on the last message when an API key
-    /// is set; falls back to a structural heuristic. nil = can't tell.
+    /// done vs needsAttention. Uses Haiku via the proxy when a bearer token is
+    /// available; falls back to a structural heuristic. nil = can't tell.
     func classifyTurnEnd(
-        transcriptPath: String, apiKey: String?
+        transcriptPath: String, bearer: String?
     ) async -> (status: DropStatus, reason: String)? {
         guard let tail = Self.readTail(path: transcriptPath, bytes: 64 * 1024) else { return nil }
         switch ClaudeTranscript.state(fromTail: tail) {
@@ -166,22 +166,23 @@ final class ClaudeIntegration: ObservableObject {
         case .unknown:
             return nil
         case .turnEnded(let text):
-            return await classifyFinalMessage(text, apiKey: apiKey)
+            return await classifyFinalMessage(text, bearer: bearer)
         }
     }
 
     /// Classify an ended turn from Claude's final message directly — used for the
     /// `Stop` hook, whose payload carries `last_assistant_message`, so there's no
-    /// need to read (and guess at) the transcript file. Haiku when a key is set;
-    /// structural heuristic otherwise. nil for an empty message.
+    /// need to read (and guess at) the transcript file. Uses the hosted proxy when
+    /// a bearer token is provided; structural heuristic otherwise. nil for an empty message.
     func classifyFinalMessage(
-        _ text: String, apiKey: String?
+        _ text: String, bearer: String?
     ) async -> (status: DropStatus, reason: String)? {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else { return nil }
-        if let key = apiKey, !key.isEmpty,
+        if let bearer, !bearer.isEmpty,
             let verdict = try? await ClaudeClassifier(
-                apiKey: key, model: ClassifierProtocolBuilder.defaultModel
+                auth: .proxy(url: BackendConfig.classifyURL, bearer: bearer),
+                model: ClassifierProtocolBuilder.defaultModel
             ).classifyTurnEndMessage(trimmed)
         {
             switch verdict.status {
