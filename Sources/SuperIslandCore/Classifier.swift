@@ -38,6 +38,7 @@ public enum ClassifierError: Error, Equatable {
     case http(status: Int, body: String)
     case malformedResponse
     case transport(String)
+    case quotaExceeded(used: Int, cap: Int)
 }
 
 /// Builds the Anthropic Messages API request and parses the response.
@@ -236,65 +237,93 @@ public enum ClassifierProtocolBuilder {
     }
 }
 
-/// Live classifier that talks to the Anthropic API over HTTPS.
+/// Live classifier. In `.direct` mode it talks to Anthropic with an API key;
+/// in `.proxy` mode it talks to the SuperIsland Edge Function with a Supabase
+/// bearer token (the function injects the Anthropic key server-side).
 public struct ClaudeClassifier: Sendable {
-    public var apiKey: String?
+    public enum Auth: Sendable {
+        case direct(apiKey: String)
+        case proxy(url: URL, bearer: String)
+    }
+
+    public var auth: Auth
     public var model: String
 
-    public init(apiKey: String?, model: String = ClassifierProtocolBuilder.defaultModel) {
-        self.apiKey = apiKey
+    public init(auth: Auth, model: String = ClassifierProtocolBuilder.defaultModel) {
+        self.auth = auth
         self.model = model
     }
 
-    public func classify(_ input: ClassificationInput) async throws -> Classification {
-        guard let apiKey, !apiKey.isEmpty else { throw ClassifierError.missingAPIKey }
+    /// Back-compat shim used during migration; a present key maps to `.direct`.
+    public init(apiKey: String?, model: String = ClassifierProtocolBuilder.defaultModel) {
+        self.auth = .direct(apiKey: apiKey ?? "")
+        self.model = model
+    }
 
+    /// Map an HTTP status + response headers to a quota error, if applicable.
+    public static func quotaError(status: Int, headers: [String: String]) -> ClassifierError? {
+        guard status == 429 else { return nil }
+        let used = Int(headers["x-quota-used"] ?? "") ?? 0
+        let cap = Int(headers["x-quota-cap"] ?? "") ?? 0
+        return .quotaExceeded(used: used, cap: cap)
+    }
+
+    public func classify(_ input: ClassificationInput) async throws -> Classification {
         let b64 = input.screenshotPNG?.base64EncodedString()
         let body = ClassifierProtocolBuilder.requestBody(
-            for: input, model: model, screenshotBase64: b64
-        )
+            for: input, model: model, screenshotBase64: b64)
         return try await send(body)
     }
 
-    /// Classify the END of a Claude Code turn from the assistant's final message
-    /// alone, using the focused `turnEndSystemPrompt`.
     public func classifyTurnEndMessage(_ message: String) async throws -> Classification {
-        guard let apiKey, !apiKey.isEmpty else { throw ClassifierError.missingAPIKey }
         let body = ClassifierProtocolBuilder.turnEndRequestBody(message: message, model: model)
         return try await send(body)
     }
 
     private func send(_ body: [String: Any]) async throws -> Classification {
-        guard let apiKey, !apiKey.isEmpty else { throw ClassifierError.missingAPIKey }
-
-        var request = URLRequest(url: ClassifierProtocolBuilder.endpoint)
-        request.httpMethod = "POST"
-        // Cap a single classify call: the default URLRequest timeout is 60s, so
-        // one hung request would itself stall a verdict for ~a minute. A Haiku
-        // classification returns in a second or two; 20s is generous headroom.
-        request.timeoutInterval = 20
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(apiKey, forHTTPHeaderField: "x-api-key")
-        request.setValue(
-            ClassifierProtocolBuilder.apiVersion, forHTTPHeaderField: "anthropic-version")
-        request.httpBody = try JSONSerialization.data(withJSONObject: body)
-
+        let request = try buildRequest(body)
         let (data, response): (Data, URLResponse)
         do {
             (data, response) = try await URLSession.shared.data(for: request)
         } catch {
             throw ClassifierError.transport(error.localizedDescription)
         }
-
         guard let http = response as? HTTPURLResponse else {
             throw ClassifierError.malformedResponse
         }
+        var headers: [String: String] = [:]
+        for (k, v) in http.allHeaderFields {
+            if let ks = k as? String, let vs = v as? String { headers[ks.lowercased()] = vs }
+        }
+        if let quota = Self.quotaError(status: http.statusCode, headers: headers) { throw quota }
         guard (200..<300).contains(http.statusCode) else {
             throw ClassifierError.http(
-                status: http.statusCode,
-                body: String(data: data, encoding: .utf8) ?? ""
-            )
+                status: http.statusCode, body: String(data: data, encoding: .utf8) ?? "")
         }
         return try ClassifierProtocolBuilder.parse(responseData: data)
+    }
+
+    private func buildRequest(_ body: [String: Any]) throws -> URLRequest {
+        let url: URL
+        switch auth {
+        case .direct: url = ClassifierProtocolBuilder.endpoint
+        case .proxy(let proxyURL, _): url = proxyURL
+        }
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.timeoutInterval = 20
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        switch auth {
+        case .direct(let key):
+            guard !key.isEmpty else { throw ClassifierError.missingAPIKey }
+            request.setValue(key, forHTTPHeaderField: "x-api-key")
+            request.setValue(ClassifierProtocolBuilder.apiVersion,
+                             forHTTPHeaderField: "anthropic-version")
+        case .proxy(_, let bearer):
+            guard !bearer.isEmpty else { throw ClassifierError.missingAPIKey }
+            request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = try JSONSerialization.data(withJSONObject: body)
+        return request
     }
 }
