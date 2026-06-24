@@ -13,7 +13,11 @@ struct SuperIslandApp: App {
                 .environmentObject(appDelegate.controller.store)
                 .environmentObject(appDelegate.controller.permissions)
                 .environmentObject(appDelegate.controller.settings)
+                .environmentObject(appDelegate.controller.auth)
                 .environmentObject(appDelegate.updater)
+                .onOpenURL { url in
+                    appDelegate.controller.auth.handleCallback(url)
+                }
         } label: {
             if let mark = Brand.menuBarImage {
                 Image(nsImage: mark)
@@ -94,5 +98,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         NSApp.servicesProvider = services
         NSUpdateDynamicServices()
         self.services = services
+
+        NSAppleEventManager.shared().setEventHandler(
+            self, andSelector: #selector(handleGetURL(_:reply:)),
+            forEventClass: AEEventClass(kInternetEventClass),
+            andEventID: AEEventID(kAEGetURL))
+    }
+
+    @objc private func handleGetURL(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
+        guard let s = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
+              let url = URL(string: s) else { return }
+        controller.auth.handleCallback(url)
     }
 }

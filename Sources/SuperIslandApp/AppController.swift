@@ -19,6 +19,7 @@ final class AppController: ObservableObject {
     let claudeIntegration = ClaudeIntegration()
     let codexIntegration = CodexIntegration()
     let restoreGuidance = RestoreGuidanceManager()
+    let auth = AuthService()
 
     /// Drops that have received at least one Claude hook event this run —
     /// hooks are ground truth, so the AI monitor leaves these alone.
