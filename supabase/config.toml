@@ -337,6 +337,14 @@ deno_version = 2
 # [edge_runtime.secrets]
 # secret_key = "env(SECRET_VALUE)"
 
+# The classify function does its OWN auth: it validates the caller's Supabase
+# user JWT via auth.getUser() and returns structured 401/400/429 responses. We
+# disable the gateway's JWT pre-check so the handler is authoritative and its
+# error bodies surface (matches the manual `--no-verify-jwt` deploy). This MUST
+# stay false so CI's `supabase functions deploy classify` doesn't re-enable it.
+[functions.classify]
+verify_jwt = false
+
 [analytics]
 enabled = true
 port = 54327
