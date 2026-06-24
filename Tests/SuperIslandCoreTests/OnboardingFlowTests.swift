@@ -6,8 +6,12 @@ final class OnboardingFlowTests: XCTestCase {
         XCTAssertEqual(
             OnboardingStep.allCases,
             [
-                .welcome, .accessibility, .integrations, .finish,
+                .welcome, .signIn, .accessibility, .integrations, .finish,
             ])
+    }
+
+    func testSignInTitle() {
+        XCTAssertEqual(OnboardingStep.signIn.title, "Sign in")
     }
 
     func testEveryStepHasATitle() {
