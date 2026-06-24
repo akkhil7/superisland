@@ -17,3 +17,18 @@ This project always deploys against the **cloud** Supabase project — never loc
 Docker. The `classify` function pins `verify_jwt = false` in `config.toml` (it
 does its own JWT validation), so CI's `functions deploy` keeps the handler
 authoritative.
+
+## Supabase MCP
+
+`.mcp.json` (repo root) registers the official Supabase MCP server, scoped to
+this project (`--project-ref=dnybgtyvqflisttbhoqw`), for managing the backend
+from Claude. It reads `SUPABASE_ACCESS_TOKEN` from the environment — no token is
+committed. To activate:
+
+1. Create a Personal Access Token (Supabase dashboard → Account → Access Tokens)
+   and export it: `export SUPABASE_ACCESS_TOKEN=sbp_…` (add to your shell
+   profile). The same token is the `SUPABASE_ACCESS_TOKEN` repo secret for CI.
+2. Restart/reload Claude Code and approve the new project MCP server when
+   prompted.
+
+For tighter safety, add `--read-only` to the `args` in `.mcp.json`.
