@@ -15,7 +15,7 @@ struct AccountSettingsPane: View {
                 Section("Sign in to use SuperIsland") {
                     ForEach(OAuthProvider.allCases, id: \.self) { provider in
                         Button("Continue with \(provider.displayName)") {
-                            Task { try? await auth.signIn(provider: provider) }
+                            auth.signIn(provider: provider)
                         }
                     }
                 }

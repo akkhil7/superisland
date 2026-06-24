@@ -138,7 +138,7 @@ private struct SignInStepView: View {
                 .frame(maxWidth: 400)
             ForEach(OAuthProvider.allCases, id: \.self) { provider in
                 Button("Continue with \(provider.displayName)") {
-                    Task { try? await auth.signIn(provider: provider) }
+                    auth.signIn(provider: provider)
                 }
                 .buttonStyle(.borderedProminent)
             }
