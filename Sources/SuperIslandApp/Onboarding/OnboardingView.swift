@@ -13,6 +13,7 @@ struct OnboardingView: View {
     @EnvironmentObject var claudeIntegration: ClaudeIntegration
     @EnvironmentObject var chromeIntegration: ChromeIntegration
     @EnvironmentObject var codexIntegration: CodexIntegration
+    @EnvironmentObject var auth: AuthService
 
     var onFinish: () -> Void
 
@@ -82,6 +83,7 @@ struct OnboardingView: View {
             }
             .buttonStyle(GlowPillButtonStyle())
             .keyboardShortcut(.defaultAction)
+            .disabled(step == .signIn && !auth.isSignedIn)
         }
         .padding(.horizontal, 26)
         .padding(.vertical, 18)
@@ -122,16 +124,31 @@ private struct WelcomeStepView: View {
 // MARK: - 2 · Sign In
 
 private struct SignInStepView: View {
+    @EnvironmentObject var auth: AuthService
+
     var body: some View {
-        VStack(spacing: 26) {
-            Text("Sign in to your account")
-                .font(.system(size: 28, weight: .bold))
+        VStack(spacing: 12) {
+            Text("Sign in to continue")
+                .font(.title2.bold())
                 .foregroundStyle(OnboardingTheme.heading)
-            Text("Connect your account to sync your clips across devices.")
+            Text("SuperIsland uses your account to run AI status checks.")
                 .font(.system(size: 13))
                 .foregroundStyle(OnboardingTheme.body)
                 .multilineTextAlignment(.center)
                 .frame(maxWidth: 400)
+            ForEach(OAuthProvider.allCases, id: \.self) { provider in
+                Button("Continue with \(provider.displayName)") {
+                    Task { try? await auth.signIn(provider: provider) }
+                }
+                .buttonStyle(.borderedProminent)
+            }
+            if auth.isSignedIn {
+                Label(
+                    "Signed in as \(auth.session?.email ?? "")",
+                    systemImage: "checkmark.circle.fill"
+                )
+                .foregroundStyle(.green)
+            }
         }
         .frame(maxWidth: .infinity)
     }

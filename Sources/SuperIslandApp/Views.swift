@@ -588,6 +588,7 @@ struct MenuBarContent: View {
     @EnvironmentObject var permissions: PermissionsManager
     @EnvironmentObject var settings: Settings
     @EnvironmentObject private var updater: SoftwareUpdater
+    @EnvironmentObject var auth: AuthService
 
     /// Accessibility is always required; Screen Recording only when the user
     /// opted into screenshots.
@@ -597,6 +598,13 @@ struct MenuBarContent: View {
     }
 
     var body: some View {
+        if !auth.isSignedIn {
+            VStack(spacing: 8) {
+                Text("Sign in to use SuperIsland").font(.headline)
+                Button("Sign in…") { controller.showOnboarding() }
+            }
+            .padding(16)
+        } else {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("Drops").font(.headline)
@@ -654,6 +662,7 @@ struct MenuBarContent: View {
         .padding(12)
         .frame(width: 320)
         .onAppear { permissions.refresh() }
+        } // end else (signed in)
     }
 }
 

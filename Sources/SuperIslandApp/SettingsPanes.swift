@@ -8,6 +8,8 @@ import SuperIslandCore
 struct SettingsView: View {
     var body: some View {
         TabView {
+            AccountSettingsPane()
+                .tabItem { Label("Account", systemImage: "person.crop.circle") }
             GeneralSettingsPane()
                 .tabItem { Label("General", systemImage: "gearshape") }
             IntegrationsSettingsPane()
