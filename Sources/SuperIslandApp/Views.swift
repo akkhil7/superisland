@@ -605,64 +605,64 @@ struct MenuBarContent: View {
             }
             .padding(16)
         } else {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text("Drops").font(.headline)
-                Spacer()
-                Button("New Drop (⌥⌘K)") { controller.createDrop() }
-            }
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Drops").font(.headline)
+                    Spacer()
+                    Button("New Drop (⌥⌘K)") { controller.createDrop() }
+                }
 
-            if permissionsBlocked {
-                Label(
-                    "Permissions needed — open Settings",
-                    systemImage: "exclamationmark.triangle.fill"
-                )
-                .font(.caption)
-                .foregroundStyle(.orange)
-            }
+                if permissionsBlocked {
+                    Label(
+                        "Permissions needed — open Settings",
+                        systemImage: "exclamationmark.triangle.fill"
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.orange)
+                }
 
-            Divider()
+                Divider()
 
-            if store.drops.isEmpty {
-                Text("No drops yet. Switch to a window and press ⌥⌘K.")
-                    .font(.callout)
-                    .foregroundStyle(.secondary)
-            } else {
-                ForEach(store.drops) { drop in
-                    HStack {
-                        Image(systemName: StatusStyle.symbol(drop.status))
-                            .foregroundStyle(StatusStyle.color(drop.status))
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(drop.label).lineLimit(1)
-                            Text(drop.history.last?.reason ?? drop.status.rawValue)
-                                .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                if store.drops.isEmpty {
+                    Text("No drops yet. Switch to a window and press ⌥⌘K.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                } else {
+                    ForEach(store.drops) { drop in
+                        HStack {
+                            Image(systemName: StatusStyle.symbol(drop.status))
+                                .foregroundStyle(StatusStyle.color(drop.status))
+                            VStack(alignment: .leading, spacing: 1) {
+                                Text(drop.label).lineLimit(1)
+                                Text(drop.history.last?.reason ?? drop.status.rawValue)
+                                    .font(.caption2).foregroundStyle(.secondary).lineLimit(1)
+                            }
+                            Spacer()
+                            Button("Go") { controller.refocus(drop) }
+                            Button {
+                                controller.dismiss(drop)
+                            } label: {
+                                Image(systemName: "xmark")
+                            }
+                            .buttonStyle(.borderless)
                         }
-                        Spacer()
-                        Button("Go") { controller.refocus(drop) }
-                        Button {
-                            controller.dismiss(drop)
-                        } label: {
-                            Image(systemName: "xmark")
-                        }
-                        .buttonStyle(.borderless)
                     }
                 }
-            }
 
-            Divider()
-            HStack {
-                OpenSettingsButton()
-                Button("Welcome Tour…") { controller.showOnboarding() }
-                Spacer()
-                Button("Check for Updates…") { updater.checkForUpdates() }
-                    .disabled(!updater.canCheckForUpdates)
-                Button("Quit") { NSApplication.shared.terminate(nil) }
+                Divider()
+                HStack {
+                    OpenSettingsButton()
+                    Button("Welcome Tour…") { controller.showOnboarding() }
+                    Spacer()
+                    Button("Check for Updates…") { updater.checkForUpdates() }
+                        .disabled(!updater.canCheckForUpdates)
+                    Button("Quit") { NSApplication.shared.terminate(nil) }
+                }
             }
-        }
-        .padding(12)
-        .frame(width: 320)
-        .onAppear { permissions.refresh() }
-        } // end else (signed in)
+            .padding(12)
+            .frame(width: 320)
+            .onAppear { permissions.refresh() }
+        }  // end else (signed in)
     }
 }
 

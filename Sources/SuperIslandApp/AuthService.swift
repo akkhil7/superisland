@@ -18,7 +18,8 @@ final class AuthService: NSObject, ObservableObject {
     override init() {
         super.init()
         if let data = Keychain.data(account: Self.keychainAccount),
-           let s = try? JSONDecoder().decode(AuthSession.self, from: data) {
+            let s = try? JSONDecoder().decode(AuthSession.self, from: data)
+        {
             session = s
         }
     }
@@ -38,8 +39,11 @@ final class AuthService: NSObject, ObservableObject {
                 Task { @MainActor [weak self] in
                     guard let self else { return }
                     if let error { self.finishPending(.failure(error)); return }
-                    if let callbackURL { self.handleCallback(callbackURL) }
-                    else { self.finishPending(.failure(URLError(.unknown))) }
+                    if let callbackURL {
+                        self.handleCallback(callbackURL)
+                    } else {
+                        self.finishPending(.failure(URLError(.unknown)))
+                    }
                 }
             }
             web.presentationContextProvider = self
@@ -88,7 +92,8 @@ final class AuthService: NSObject, ObservableObject {
     }
 
     private func refresh(using refreshToken: String) async {
-        var req = URLRequest(url: appending(BackendConfig.tokenURL, query: "grant_type=refresh_token"))
+        var req = URLRequest(
+            url: appending(BackendConfig.tokenURL, query: "grant_type=refresh_token"))
         req.httpMethod = "POST"
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue(BackendConfig.anonKey, forHTTPHeaderField: "apikey")
@@ -102,7 +107,9 @@ final class AuthService: NSObject, ObservableObject {
         do {
             let (data, resp) = try await URLSession.shared.data(for: req)
             guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
-                if finishesPending { finishPending(.failure(URLError(.userAuthenticationRequired))) }
+                if finishesPending {
+                    finishPending(.failure(URLError(.userAuthenticationRequired)))
+                }
                 return false
             }
             let newSession = try AuthSession.from(tokenResponse: data, now: Date())

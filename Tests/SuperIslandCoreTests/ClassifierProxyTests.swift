@@ -18,11 +18,15 @@ final class ClassifierProxyTests: XCTestCase {
     }
 
     func testProxyAuthCanBeConstructed() {
-        let c = ClaudeClassifier(auth: .proxy(url: URL(string: "https://x/functions/v1/classify")!,
-                                              bearer: "jwt"))
+        let c = ClaudeClassifier(
+            auth: .proxy(
+                url: URL(string: "https://x/functions/v1/classify")!,
+                bearer: "jwt"))
         if case .proxy(let url, let bearer) = c.auth {
             XCTAssertEqual(url.absoluteString, "https://x/functions/v1/classify")
             XCTAssertEqual(bearer, "jwt")
-        } else { XCTFail("expected proxy auth") }
+        } else {
+            XCTFail("expected proxy auth")
+        }
     }
 }

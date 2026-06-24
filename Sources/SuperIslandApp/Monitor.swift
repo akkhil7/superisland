@@ -192,7 +192,8 @@ final class SuperIslandMonitor: ObservableObject {
                     id: id, to: verdict.status, label: verdict.label, reason: verdict.reason
                 )
             } catch let ClassifierError.quotaExceeded(used, cap) {
-                store.updateStatus(id: id, to: .unknown, reason: "Daily limit reached (\(used)/\(cap))")
+                store.updateStatus(
+                    id: id, to: .unknown, reason: "Daily limit reached (\(used)/\(cap))")
             } catch {
                 store.updateStatus(id: id, to: .unknown, reason: "AI error: \(error)")
             }

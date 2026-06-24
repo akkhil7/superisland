@@ -791,7 +791,8 @@ final class AppController: ObservableObject {
         Task { @MainActor [weak self] in
             guard let self else { return }
             let token = await self.auth.validAccessToken()
-            guard let result = await self.claudeIntegration.classifyTurnEnd(
+            guard
+                let result = await self.claudeIntegration.classifyTurnEnd(
                     transcriptPath: path, bearer: token
                 ),
                 self.store.drop(id: drop.id) != nil

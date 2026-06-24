@@ -27,16 +27,21 @@ public struct AuthSession: Codable, Equatable, Sendable {
         else { throw AuthSessionError.malformed }
 
         let expiresAt: Date
-        if let abs = (root["expires_at"] as? Double) ?? (root["expires_at"] as? NSNumber)?.doubleValue {
+        if let abs = (root["expires_at"] as? Double)
+            ?? (root["expires_at"] as? NSNumber)?.doubleValue
+        {
             expiresAt = Date(timeIntervalSince1970: abs)
-        } else if let inSec = (root["expires_in"] as? Double) ?? (root["expires_in"] as? NSNumber)?.doubleValue {
+        } else if let inSec = (root["expires_in"] as? Double)
+            ?? (root["expires_in"] as? NSNumber)?.doubleValue
+        {
             expiresAt = now.addingTimeInterval(inSec)
         } else {
             throw AuthSessionError.malformed
         }
 
         let email = (root["user"] as? [String: Any])?["email"] as? String
-        return AuthSession(accessToken: access, refreshToken: refresh, expiresAt: expiresAt, email: email)
+        return AuthSession(
+            accessToken: access, refreshToken: refresh, expiresAt: expiresAt, email: email)
     }
 
     /// True when the access token is expired or within `leeway` of expiring.

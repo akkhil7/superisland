@@ -106,9 +106,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             andEventID: AEEventID(kAEGetURL))
     }
 
-    @objc private func handleGetURL(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor) {
+    @objc private func handleGetURL(_ event: NSAppleEventDescriptor, reply: NSAppleEventDescriptor)
+    {
         guard let s = event.paramDescriptor(forKeyword: AEKeyword(keyDirectObject))?.stringValue,
-              let url = URL(string: s) else { return }
+            let url = URL(string: s)
+        else { return }
         controller.auth.handleCallback(url)
     }
 }

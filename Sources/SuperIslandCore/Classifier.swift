@@ -317,8 +317,9 @@ public struct ClaudeClassifier: Sendable {
         case .direct(let key):
             guard !key.isEmpty else { throw ClassifierError.missingAPIKey }
             request.setValue(key, forHTTPHeaderField: "x-api-key")
-            request.setValue(ClassifierProtocolBuilder.apiVersion,
-                             forHTTPHeaderField: "anthropic-version")
+            request.setValue(
+                ClassifierProtocolBuilder.apiVersion,
+                forHTTPHeaderField: "anthropic-version")
         case .proxy(_, let bearer):
             guard !bearer.isEmpty else { throw ClassifierError.missingAPIKey }
             request.setValue("Bearer \(bearer)", forHTTPHeaderField: "Authorization")

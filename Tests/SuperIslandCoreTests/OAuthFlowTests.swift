@@ -6,16 +6,18 @@ final class OAuthFlowTests: XCTestCase {
     // RFC 7636 Appendix B canonical PKCE vector.
     func testCodeChallengeMatchesRFCVector() {
         let verifier = "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW1gFWFOEjXk"
-        XCTAssertEqual(OAuthFlow.codeChallenge(forVerifier: verifier),
-                       "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
+        XCTAssertEqual(
+            OAuthFlow.codeChallenge(forVerifier: verifier),
+            "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM")
     }
 
     func testGeneratedPKCEVerifierIsUrlSafeAndLongEnough() {
         let pkce = PKCE.generate()
         XCTAssertGreaterThanOrEqual(pkce.verifier.count, 43)
         XCTAssertEqual(pkce.challenge, OAuthFlow.codeChallenge(forVerifier: pkce.verifier))
-        let allowed = CharacterSet(charactersIn:
-            "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
+        let allowed = CharacterSet(
+            charactersIn:
+                "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~")
         XCTAssertTrue(pkce.verifier.unicodeScalars.allSatisfy { allowed.contains($0) })
     }
 
@@ -43,13 +45,19 @@ final class OAuthFlowTests: XCTestCase {
     func testParseCallbackSurfacesProviderError() {
         let r = OAuthFlow.parseCallback(
             URL(string: "superisland://auth-callback?error=access_denied&error_description=nope")!)
-        if case .failure(let e) = r { XCTAssertEqual(e, .providerError("access_denied")) }
-        else { XCTFail("expected failure") }
+        if case .failure(let e) = r {
+            XCTAssertEqual(e, .providerError("access_denied"))
+        } else {
+            XCTFail("expected failure")
+        }
     }
 
     func testParseCallbackMissingCode() {
         let r = OAuthFlow.parseCallback(URL(string: "superisland://auth-callback")!)
-        if case .failure(let e) = r { XCTAssertEqual(e, .missingCode) }
-        else { XCTFail("expected failure") }
+        if case .failure(let e) = r {
+            XCTAssertEqual(e, .missingCode)
+        } else {
+            XCTFail("expected failure")
+        }
     }
 }
