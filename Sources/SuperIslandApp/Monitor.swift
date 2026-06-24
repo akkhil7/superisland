@@ -24,9 +24,12 @@ final class SuperIslandMonitor: ObservableObject {
     /// makes AI polling unnecessary and potentially conflicting.
     var isExternallyManaged: ((Drop) -> Bool)?
 
-    init(store: DropStore, settings: Settings) {
+    private let auth: AuthService
+
+    init(store: DropStore, settings: Settings, auth: AuthService) {
         self.store = store
         self.settings = settings
+        self.auth = auth
     }
 
     func start() {
@@ -65,9 +68,8 @@ final class SuperIslandMonitor: ObservableObject {
         let now = Date()
         for drop in store.drops where drop.status != .stale {
             // Terminal drops are owned by shell hook / agent events, never AI.
-            // Classifying one with no API key is what produced the bogus
-            // "No API key" status; without shell integration they simply have
-            // no live status (still fine as click-to-return bookmarks).
+            // Without shell integration they simply have no live status
+            // (still fine as click-to-return bookmarks).
             switch drop.target.locator {
             case .shell, .terminal, .iterm: continue
             default: break
@@ -83,12 +85,15 @@ final class SuperIslandMonitor: ObservableObject {
     private func classify(_ drop: Drop) {
         let id = drop.id
         let target = drop.target
-        let apiKey = settings.apiKey()
         let allowScreenshots = settings.useScreenshots
 
         inFlight.insert(id)
         Task { @MainActor in
             defer { inFlight.remove(id) }
+
+            guard let token = await auth.validAccessToken() else {
+                return  // signed out → no classification (the `defer` clears inFlight)
+            }
 
             guard NSRunningApplication(processIdentifier: target.pid) != nil else {
                 store.updateStatus(id: id, to: .stale, reason: "app closed")
@@ -144,12 +149,6 @@ final class SuperIslandMonitor: ObservableObject {
                 }
             }
 
-            guard let key = apiKey, !key.isEmpty else {
-                store.updateStatus(id: id, to: .unknown, reason: "No API key")
-                scheduleNextCheck()
-                return
-            }
-
             // Nothing readable at all — a Claude call would only echo "empty
             // window" back. Say what would actually fix it instead. Retry at the
             // base cadence while the window populates (see unreadableFastRetries)
@@ -180,7 +179,8 @@ final class SuperIslandMonitor: ObservableObject {
             )
             do {
                 let verdict = try await ClaudeClassifier(
-                    apiKey: key, model: ClassifierProtocolBuilder.defaultModel
+                    auth: .proxy(url: BackendConfig.classifyURL, bearer: token),
+                    model: ClassifierProtocolBuilder.defaultModel
                 ).classify(input)
                 // An event source may have claimed this drop while the API
                 // call was in flight — its truth beats our guess.
@@ -190,6 +190,9 @@ final class SuperIslandMonitor: ObservableObject {
                 store.updateStatusAndLabel(
                     id: id, to: verdict.status, label: verdict.label, reason: verdict.reason
                 )
+            } catch let ClassifierError.quotaExceeded(used, cap) {
+                store.updateStatus(
+                    id: id, to: .unknown, reason: "Daily limit reached (\(used)/\(cap))")
             } catch {
                 store.updateStatus(id: id, to: .unknown, reason: "AI error: \(error)")
             }

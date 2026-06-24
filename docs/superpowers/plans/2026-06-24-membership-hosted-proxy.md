@@ -619,7 +619,15 @@ git commit -m "feat(core): add sign-in onboarding step"
 
 ## Phase B — Server (Supabase)
 
-> Prereq for running locally: Supabase CLI installed (`brew install supabase/tap/supabase`) and Docker running. `supabase init` has been run once (creates `supabase/config.toml`). If `supabase/` already exists, skip init.
+> **Cloud-only workflow (no Docker):** This project always runs against the
+> **real cloud Supabase project**, never local Docker. Do not use `supabase
+> start`, `supabase test db` (local), or `supabase functions serve` (local) —
+> all spin up a local Docker Postgres/edge-runtime. Instead: `supabase link
+> --project-ref <ref>`, `supabase db push` (applies migrations to the remote),
+> `supabase functions deploy classify`, and verify against the remote DB
+> connection / deployed function URL. Requires `SUPABASE_ACCESS_TOKEN` + the
+> project ref (owner provides). `supabase init` (which only writes
+> `supabase/config.toml`, no Docker) is fine to run once if `supabase/` is absent.
 
 ### Task 5: Database schema — profiles, usage_daily, quota function, RLS (pgTAP-tested)
 
@@ -753,10 +761,20 @@ select * from finish();
 rollback;
 ```
 
-- [ ] **Step 4: Run the DB tests**
+- [ ] **Step 4: Apply migrations to the cloud project and run the pgTAP test against the remote DB**
 
-Run: `supabase test db`
-Expected: `All tests successful.` (4 passing). The CLI starts a local Postgres, applies migrations, runs pgTAP.
+No Docker. Link + push migrations to the remote, ensure pgTAP is available, then run the test file against the remote connection:
+
+```bash
+supabase link --project-ref "$SUPABASE_PROJECT_REF"   # needs SUPABASE_ACCESS_TOKEN
+supabase db push                                       # applies migrations to remote
+# Enable pgTAP once on the remote (idempotent) and run the test:
+REMOTE_DB_URL="$(supabase db dump --dry-run 2>/dev/null >/dev/null; echo)"   # or paste the project's pooled connection string
+psql "$REMOTE_DB_URL" -c 'create extension if not exists pgtap;'
+psql "$REMOTE_DB_URL" -f supabase/tests/quota_test.sql
+```
+
+Expected: the migration applies cleanly and the pgTAP run prints `ok 1..4` with no `not ok`. (The `quota_test.sql` wraps everything in `begin … rollback`, so it leaves no rows behind on the remote.) Use the project's pooled/direct connection string from the Supabase dashboard for `REMOTE_DB_URL`.
 
 - [ ] **Step 5: Commit**
 
@@ -951,11 +969,19 @@ const deps: Deps = {
 serve((req) => handle(req, deps));
 ```
 
-- [ ] **Step 6: Verify it serves locally (manual)**
+- [ ] **Step 6: Deploy to the cloud project and smoke-test the live function (no Docker)**
 
-Run: `supabase functions serve classify --no-verify-jwt --env-file supabase/.env.local`
-(`supabase/.env.local` holds `ANTHROPIC_API_KEY`, `DAILY_CALL_CAP`; gitignored.)
-Expected: server boots, logs "Serving functions on …/classify". Ctrl-C to stop. (A full happy-path round-trip needs a real JWT + key; the Deno tests already cover the branch logic.)
+The pure branch logic is already proven by the Deno tests in Step 4. Verify the deployed function rejects unauthenticated calls against the real project:
+
+```bash
+supabase functions deploy classify   # needs SUPABASE_ACCESS_TOKEN + linked project
+# Unauthenticated POST → expect HTTP 401 from our handler:
+curl -s -o /dev/null -w "%{http_code}\n" -X POST \
+  "https://$SUPABASE_PROJECT_REF.functions.supabase.co/classify" \
+  -H "content-type: application/json" -d '{"model":"claude-haiku-4-5"}'
+```
+
+Expected: `401` (missing bearer token). Function secrets (`ANTHROPIC_API_KEY`, `DAILY_CALL_CAP`) must already be set on the project via `supabase secrets set` (owner setup). A full happy-path round-trip needs a real user JWT.
 
 - [ ] **Step 7: Commit**
 

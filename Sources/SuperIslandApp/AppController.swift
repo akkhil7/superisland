@@ -19,6 +19,7 @@ final class AppController: ObservableObject {
     let claudeIntegration = ClaudeIntegration()
     let codexIntegration = CodexIntegration()
     let restoreGuidance = RestoreGuidanceManager()
+    let auth = AuthService()
 
     /// Drops that have received at least one Claude hook event this run —
     /// hooks are ground truth, so the AI monitor leaves these alone.
@@ -75,7 +76,7 @@ final class AppController: ObservableObject {
         store = DropStore(fileURL: url)
         settings = Settings()
         permissions = PermissionsManager()
-        monitor = SuperIslandMonitor(store: store, settings: settings)
+        monitor = SuperIslandMonitor(store: store, settings: settings, auth: auth)
     }
 
     func start() {
@@ -308,18 +309,18 @@ final class AppController: ObservableObject {
     private func refineClaudeTurnEnd(
         dropID: UUID, label: String?, message: String?, transcriptPath: String?
     ) {
-        let key = settings.apiKey()
         Task { @MainActor [weak self] in
             guard let self else { return }
+            let token = await self.auth.validAccessToken()
             // The Stop hook carries Claude's final message directly — classify
             // it without touching the transcript. Only fall back to reading the
             // file if the payload didn't include it (older Claude Code).
             let result: (status: DropStatus, reason: String)?
             if let message, !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                result = await self.claudeIntegration.classifyFinalMessage(message, apiKey: key)
+                result = await self.claudeIntegration.classifyFinalMessage(message, bearer: token)
             } else if let transcriptPath {
                 result = await self.claudeIntegration.classifyTurnEnd(
-                    transcriptPath: transcriptPath, apiKey: key
+                    transcriptPath: transcriptPath, bearer: token
                 )
             } else {
                 result = nil
@@ -670,6 +671,12 @@ final class AppController: ObservableObject {
 
     @discardableResult
     func createDrop() -> Bool {
+        guard auth.isSignedIn else {
+            showToast("Sign in to use SuperIsland")
+            showOnboarding()
+            NSSound.beep()
+            return false
+        }
         guard AXIsProcessTrusted() else { permissions.requestAccessibility(); return false }
         guard let app = targetApp(), let front = WindowFinder.frontWindow(for: app) else {
             NSSound.beep(); return false
@@ -781,11 +788,12 @@ final class AppController: ObservableObject {
             let url = drop.target.contentURL,
             let path = claudeIntegration.transcriptPath(forContentURL: url)
         else { return }
-        let key = settings.apiKey()
         Task { @MainActor [weak self] in
-            guard let self,
+            guard let self else { return }
+            let token = await self.auth.validAccessToken()
+            guard
                 let result = await self.claudeIntegration.classifyTurnEnd(
-                    transcriptPath: path, apiKey: key
+                    transcriptPath: path, bearer: token
                 ),
                 self.store.drop(id: drop.id) != nil
             else { return }
@@ -807,12 +815,12 @@ final class AppController: ObservableObject {
         default: return
         }
         guard let tty = ttyDevice else { return }
-        let key = settings.apiKey()
         Task { @MainActor [weak self] in
             guard let self else { return }
+            let token = await self.auth.validAccessToken()
             guard let path = await Self.claudeTranscriptOnTTY(tty),
                 let result = await self.claudeIntegration.classifyTurnEnd(
-                    transcriptPath: path, apiKey: key
+                    transcriptPath: path, bearer: token
                 ),
                 // Never seed sticky `.working` cold — see adoptsColdStartSeed.
                 ClaudeTerminalSession.adoptsColdStartSeed(result.status),
@@ -892,10 +900,12 @@ final class AppController: ObservableObject {
         case .shell, .terminal, .iterm: break
         default: return
         }
-        guard let key = settings.apiKey(), !key.isEmpty else { return }
+        // Lazily fetched inside the Task below.
         let initialLabel = drop.label
         let target = drop.target
         Task { @MainActor [weak self] in
+            guard let self else { return }
+            guard let token = await self.auth.validAccessToken() else { return }
             let snapshot = await CaptureService.snapshot(
                 pid: target.pid, windowID: target.windowID,
                 axWindow: WindowFinder.axWindow(pid: target.pid, windowID: target.windowID),
@@ -907,9 +917,10 @@ final class AppController: ObservableObject {
                 windowTitle: target.windowTitle,
                 axText: snapshot.axText
             )
-            guard let self,
+            guard
                 let verdict = try? await ClaudeClassifier(
-                    apiKey: key, model: ClassifierProtocolBuilder.defaultModel
+                    auth: .proxy(url: BackendConfig.classifyURL, bearer: token),
+                    model: ClassifierProtocolBuilder.defaultModel
                 ).classify(input),
                 let aiLabel = verdict.label, !aiLabel.isEmpty
             else { return }

@@ -42,6 +42,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             .environmentObject(controller.claudeIntegration)
             .environmentObject(controller.chromeIntegration)
             .environmentObject(controller.codexIntegration)
+            .environmentObject(controller.auth)
 
         let hosting = NSHostingView(
             rootView: AnyView(
