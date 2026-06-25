@@ -8,12 +8,16 @@ import CryptoKit
 /// host without asking the user to copy the ID out of chrome://extensions.
 public enum ChromeExtensionIdentity {
     /// The base64 public key embedded in `Extensions/Chrome/manifest.json`.
+    /// This is the Chrome Web Store item's public key, so the unpacked dev build
+    /// and the published extension resolve to the same ID (native messaging works
+    /// for both). The Web Store rejects a manifest containing `key`, so the
+    /// packaging script strips it from the uploaded zip.
     public static let manifestKey = """
-        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnWzct1ORf26F7rMWXHE2LG3xnUCg3i4wTkpOhzC0Jj2Z9dQ6HI34HWWxkFayZJ68WfToO8Sal5ZezqYRXEF8YT+wd1Bqgx+2k+K6Vb7PbPIa31VxY4Uc4139i0MUXb0o62izjw46+QTmJaOUuCov0+8HDabHqTipR8TZ1Upu5jqLkesuAdCRGp/gAHn1nxUwbA+lapqe3dvDqxsdDs9WktXo+gZBw0s8T08lwx4a5UabxNl1NdBYl56jTXK1SMLX1bR+beMyUHlwGp4qflwDzuaH7+ZLzMd4Bq0bpkJGTAMIK4IciL421ay4aj9F4lXRE7PhFC0Dn1d7SR51prlPSQIDAQAB
+        MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzN5Wk3I666wgoJeZ0bMMzDkAGr3wLOHAsiOP0/m+eTDH6627ezMLLkaMbq9yisqGjUUT361/nLZZpH8APGtPf8hggaAPPWMwiqh8k1psJhEGAUgG36CWESVqrWuATeMqJLeDzjMApyYp3tG322584KcMuhpdtub/f06+zSMesRzU09kLHNDBVUcvogHr3YLEWlmPtH5W7cOkmWIqE7wuUtFKG0xbBc0H9AnXA2G3v5kvRMQVvlXsnFPkZ5R0xN80DsgKDPBfu07zxyQdrHrqVDkGNzCz0h698IXyKQe75DSJZc1br1XP+nRJDisvy7z7LLO6dLWRFZax68+/kiDnZwIDAQAB
         """
 
-    /// The extension ID Chrome assigns for `manifestKey`.
-    public static let extensionID = "nojmmgbfjaohlfclonopaeaenadfjeji"
+    /// The extension ID Chrome assigns for `manifestKey` (the Web Store item ID).
+    public static let extensionID = "jdapljiiabpkggmdjbjjpihnjlaomhdo"
 
     /// Compute the extension ID for a base64-encoded DER public key.
     public static func extensionID(forBase64Key key: String) -> String? {
