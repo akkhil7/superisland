@@ -27,8 +27,10 @@ Native messaging binds the app to a fixed ID: the native-host manifest sets
 `ChromeExtensionIdentity.extensionID` (currently the pinned-key ID
 `nojmmgbfjaohlfclonopaeaenadfjeji`).
 
-The Web Store **assigns its own ID** and **ignores** the manifest `key`. To make
-unpacked dev and the published item share one ID:
+The Web Store **assigns its own ID** and **rejects a manifest that contains
+`key`** ("key field is not allowed in manifest"). So `Scripts/package-chrome-extension.sh`
+**strips `key`** from the packaged zip, while the source manifest keeps it for
+unpacked dev. To make unpacked dev and the published item share one ID:
 
 1. Create the Web Store item and upload the package (gets an assigned **item ID**).
 2. In the Developer Dashboard, copy the item's **public key** (Package → "View
@@ -49,7 +51,7 @@ authorizes the right origin.
 - **Packaging script** — `Scripts/package-chrome-extension.sh` → builds
   `.build/SuperIslandChromeBridge.zip` containing only the runtime files
   (manifest, background.js, content.js, icons). Excludes README + the native-host
-  template.
+  template, and **strips the `key` field** (the Web Store rejects it).
 - **Privacy policy** — hosted at
   `https://akkhil7.github.io/superisland/privacy.html` (required because the
   extension reads page content).
