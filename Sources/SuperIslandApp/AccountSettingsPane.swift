@@ -13,11 +13,15 @@ struct AccountSettingsPane: View {
                 }
             } else {
                 Section("Sign in to use SuperIsland") {
-                    ForEach(OAuthProvider.allCases, id: \.self) { provider in
-                        Button("Continue with \(provider.displayName)") {
-                            Task { try? await auth.signIn(provider: provider) }
+                    VStack(spacing: 10) {
+                        ForEach(OAuthProvider.allCases, id: \.self) { provider in
+                            ProviderSignInButton(provider: provider) {
+                                auth.signIn(provider: provider)
+                            }
                         }
                     }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 6)
                 }
             }
         }
