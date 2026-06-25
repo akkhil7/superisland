@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>SuperIsland Chrome Bridge — Privacy Policy</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      max-width: 720px; margin: 40px auto; padding: 0 20px; line-height: 1.6;
+      color: #1c1b22;
+    }
+    @media (prefers-color-scheme: dark) { body { color: #ECEAF6; background: #0c0a16; } a { color: #b79cff; } }
+    h1 { font-size: 26px; }
+    h2 { font-size: 18px; margin-top: 28px; }
+    .muted { color: #6f6a8d; font-size: 13px; }
+    code { background: rgba(127,127,127,.18); padding: 1px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>SuperIsland Chrome Bridge — Privacy Policy</h1>
+  <p class="muted">Last updated: 2026-06-25</p>
+
+  <p>The <strong>SuperIsland Chrome Bridge</strong> extension connects your Chrome
+  tabs to the SuperIsland macOS app so the app can show which of your in-progress
+  tasks need you and take you back to the exact tab. This policy explains what the
+  extension accesses and how that data is used.</p>
+
+  <h2>What the extension accesses</h2>
+  <ul>
+    <li><strong>Tab information</strong> — the URL, title, and identity of your open tabs.</li>
+    <li><strong>Page content</strong> — a lightweight summary of the current page's
+      visible text and structure, used to detect whether a task on the page is
+      working, finished, or waiting on you (for example, an AI assistant that has
+      stopped and is asking a question).</li>
+    <li><strong>Navigation events</strong> — when tabs change, so status can update.</li>
+  </ul>
+
+  <h2>How the data is used</h2>
+  <p>The extension sends this information over Chrome's
+  <a href="https://developer.chrome.com/docs/extensions/develop/concepts/native-messaging">native
+  messaging</a> to the SuperIsland app running on the <strong>same computer</strong>.
+  The app uses it to update task status and to refocus the right tab.</p>
+  <p>When a page's status can't be determined locally, a short text summary of the
+  page may be sent to SuperIsland's classification service (hosted on Supabase) and
+  on to Anthropic's API to determine the task's status. Only the minimal text
+  needed for that judgment is sent.</p>
+
+  <h2>What we do NOT do</h2>
+  <ul>
+    <li>We do not sell or share your data with third parties for advertising.</li>
+    <li>We do not use analytics or tracking inside the extension.</li>
+    <li>We do not store your browsing history. Page summaries are processed
+      transiently to determine status and are not retained beyond operational logs.</li>
+  </ul>
+
+  <h2>Permissions</h2>
+  <p>The extension requests access to all sites (<code>&lt;all_urls&gt;</code>) and to
+  tabs because the tasks you track can live on any website, and status detection
+  needs to read the active page. The extension only acts on tabs you are using
+  with SuperIsland.</p>
+
+  <h2>Contact</h2>
+  <p>Questions: <a href="mailto:akhilr94@gmail.com">akhilr94@gmail.com</a></p>
+</body>
+</html>
