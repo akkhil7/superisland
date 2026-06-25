@@ -19,6 +19,8 @@ enum HookDebugLog {
 
     static func log(_ message: String) {
         osLog.debug("\(message, privacy: .public)")
+        // Mirror into the in-app diagnostics buffer (main-actor isolated).
+        DispatchQueue.main.async { DiagnosticLogger.shared.log(.hooks, message) }
         queue.async {
             let line = "\(timestamp())  \(message)\n"
             guard let data = line.data(using: .utf8) else { return }

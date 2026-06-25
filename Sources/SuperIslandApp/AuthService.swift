@@ -36,21 +36,27 @@ final class AuthService: NSObject, ObservableObject {
         let url = OAuthFlow.authorizeURL(
             baseURL: BackendConfig.supabaseURL, provider: provider,
             redirectTo: BackendConfig.redirectURI, codeChallenge: pkce.challenge)
+        dlog(.auth, "sign-in started via \(provider.rawValue)")
         NSWorkspace.shared.open(url)
     }
 
     func handleCallback(_ url: URL) {
         switch OAuthFlow.parseCallback(url) {
-        case .failure:
+        case .failure(let error):
+            dlog(.error, "oauth callback failed: \(error)")
             pendingPKCE = nil
         case .success(let code):
-            guard let verifier = pendingPKCE?.verifier else { return }
+            guard let verifier = pendingPKCE?.verifier else {
+                dlog(.error, "oauth callback with no pending sign-in")
+                return
+            }
             pendingPKCE = nil
             Task { await self.exchange(code: code, verifier: verifier) }
         }
     }
 
     func signOut() {
+        dlog(.auth, "signed out")
         session = nil
         Keychain.setData(nil, account: Self.keychainAccount)
     }
@@ -84,7 +90,10 @@ final class AuthService: NSObject, ObservableObject {
         req.setValue(BackendConfig.anonKey, forHTTPHeaderField: "apikey")
         req.httpBody = try? JSONSerialization.data(withJSONObject: ["refresh_token": refreshToken])
         let ok = await sendTokenRequest(req)
-        if !ok { signOut() }  // refresh failed → hard wall re-engages
+        if !ok {
+            dlog(.auth, "token refresh failed → signing out")
+            signOut()  // refresh failed → hard wall re-engages
+        }
     }
 
     @discardableResult
@@ -92,6 +101,8 @@ final class AuthService: NSObject, ObservableObject {
         do {
             let (data, resp) = try await URLSession.shared.data(for: req)
             guard let http = resp as? HTTPURLResponse, (200..<300).contains(http.statusCode) else {
+                let code = (resp as? HTTPURLResponse)?.statusCode ?? -1
+                dlog(.error, "token endpoint HTTP \(code)")
                 return false
             }
             let newSession = try AuthSession.from(tokenResponse: data, now: Date())
@@ -99,8 +110,10 @@ final class AuthService: NSObject, ObservableObject {
             if let encoded = try? JSONEncoder().encode(newSession) {
                 Keychain.setData(encoded, account: Self.keychainAccount)
             }
+            dlog(.auth, "session established for \(newSession.email ?? "?")")
             return true
         } catch {
+            dlog(.error, "token request error: \(error.localizedDescription)")
             return false
         }
     }

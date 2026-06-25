@@ -21,6 +21,10 @@ final class AppController: ObservableObject {
     let restoreGuidance = RestoreGuidanceManager()
     let auth = AuthService()
 
+    /// Set by the AppDelegate to show/hide the notch island as the user signs
+    /// in/out — when signed out the app is locked and nothing should run.
+    var onActiveChange: ((Bool) -> Void)?
+
     /// Drops that have received at least one Claude hook event this run —
     /// hooks are ground truth, so the AI monitor leaves these alone.
     private var hookManagedDrops = Set<UUID>()
@@ -93,13 +97,31 @@ final class AppController: ObservableObject {
         // users who enabled the Claude integration on an earlier version.
         claudeIntegration.reconcile()
         backfillClaudeLabels()
-        monitor.start()
+        // Monitoring (and the island) only run while signed in. This subscription
+        // fires immediately with the current auth state and on every change.
+        observeAuthForActivity()
         chromeBridgeServer.start()
         // Keep the native host manifest pointing at the current bundle path —
         // the pinned extension ID never changes, but the app might move.
         if chromeIntegration.isNativeHostInstalled {
             try? chromeIntegration.installNativeHost()
         }
+    }
+
+    /// Gate all activity on sign-in: run the monitor and show the island only
+    /// while signed in; pause and hide them when signed out. Event handlers and
+    /// refocus are guarded separately, so a signed-out app is fully inert.
+    private func observeAuthForActivity() {
+        auth.$session
+            .map { $0 != nil }
+            .removeDuplicates()
+            .sink { [weak self] signedIn in
+                guard let self else { return }
+                dlog(.app, signedIn ? "active — monitoring on" : "locked — signed out")
+                if signedIn { self.monitor.start() } else { self.monitor.stop() }
+                self.onActiveChange?(signedIn)
+            }
+            .store(in: &cancellables)
     }
 
     // MARK: - Shell server
@@ -129,6 +151,7 @@ final class AppController: ObservableObject {
     // MARK: - Codex (rollout watching; /codex endpoint serves CLI hooks only)
 
     private func handleCodexHookEvent(_ event: ClaudeHookEvent) {
+        guard auth.isSignedIn else { return }  // signed out → app is locked
         guard let update = CodexHookMapper.update(for: event) else { return }
         if let drop = store.drops.first(where: {
             $0.target.contentURL == CodexIntegration.sessionURLPrefix + event.sessionID
@@ -199,6 +222,7 @@ final class AppController: ObservableObject {
     // MARK: - Claude Code hooks
 
     private func handleClaudeHookEvent(_ event: ClaudeHookEvent) {
+        guard auth.isSignedIn else { return }  // signed out → app is locked
         HookDebugLog.log(
             "EVENT \(event.event) notif=\(event.notificationType ?? "-") "
                 + "permMode=\(event.permissionMode ?? "-") sid=\(event.sessionID.prefix(8)) "
@@ -371,6 +395,7 @@ final class AppController: ObservableObject {
     }
 
     private func handleShellEvent(_ event: ShellEvent) {
+        guard auth.isSignedIn else { return }  // signed out → app is locked
         switch event.event {
         case "register":
             shellIntegration.sessionRegistered()
@@ -769,6 +794,7 @@ final class AppController: ObservableObject {
             restoreMemoryID: restoreMemoryID
         )
         store.add(drop)
+        dlog(.app, "drop created: \(drop.label) [\(front.bundleID)]")
         if let restoreMemoryID {
             Task { @MainActor [restoreGuidance] in
                 await restoreGuidance.captureMemory(id: restoreMemoryID, target: target)
@@ -945,6 +971,7 @@ final class AppController: ObservableObject {
     }
 
     func refocus(_ drop: Drop) {
+        guard auth.isSignedIn else { return }  // signed out → app is locked
         Refocuser.refocus(drop)
         guard settings.rememberVisualState else { return }
         Task { @MainActor [restoreGuidance] in
@@ -960,6 +987,11 @@ final class AppController: ObservableObject {
     var showOnboardingRequested: (() -> Void)?
 
     func showOnboarding() { showOnboardingRequested?() }
+
+    /// Set by the AppDelegate so the menu-bar "Logs…" item can open the viewer.
+    var showLogsRequested: (() -> Void)?
+
+    func showLogs() { showLogsRequested?() }
 
     /// Brief island expansion after onboarding finishes — a visual "it lives
     /// here" pointer at the notch.

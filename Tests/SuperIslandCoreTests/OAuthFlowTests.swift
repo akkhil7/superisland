@@ -34,7 +34,8 @@ final class OAuthFlowTests: XCTestCase {
         XCTAssertEqual(items["redirect_to"], "superisland://auth-callback")
         XCTAssertEqual(items["code_challenge"], "CHAL")
         XCTAssertEqual(items["code_challenge_method"], "s256")
-        XCTAssertEqual(items["flow_type"], "pkce")
+        // no such Supabase param — must not leak through to the provider URL
+        XCTAssertFalse(items.keys.contains("flow_type"))
     }
 
     func testParseCallbackExtractsCode() {

@@ -6,18 +6,24 @@ import SuperIslandCore
 
 /// Tabbed, System Settings-style preferences window.
 struct SettingsView: View {
+    @EnvironmentObject var auth: AuthService
+
     var body: some View {
         TabView {
             AccountSettingsPane()
                 .tabItem { Label("Account", systemImage: "person.crop.circle") }
-            GeneralSettingsPane()
-                .tabItem { Label("General", systemImage: "gearshape") }
-            IntegrationsSettingsPane()
-                .tabItem { Label("Integrations", systemImage: "puzzlepiece.extension") }
-            PermissionsSettingsPane()
-                .tabItem { Label("Permissions", systemImage: "lock.shield") }
-            AboutSettingsPane()
-                .tabItem { Label("About", systemImage: "info.circle") }
+            // Signed out, the app is locked — only the Account (sign-in) tab is
+            // reachable; the rest appear once signed in.
+            if auth.isSignedIn {
+                GeneralSettingsPane()
+                    .tabItem { Label("General", systemImage: "gearshape") }
+                IntegrationsSettingsPane()
+                    .tabItem { Label("Integrations", systemImage: "puzzlepiece.extension") }
+                PermissionsSettingsPane()
+                    .tabItem { Label("Permissions", systemImage: "lock.shield") }
+                AboutSettingsPane()
+                    .tabItem { Label("About", systemImage: "info.circle") }
+            }
         }
         .frame(width: 540)
     }

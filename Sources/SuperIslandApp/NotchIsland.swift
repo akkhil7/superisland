@@ -96,6 +96,20 @@ final class NotchIslandController {
         installMouseTrackingMonitors()
     }
 
+    /// Hide the island entirely and tear down its event monitors. Used when the
+    /// user is signed out — the app is locked, so nothing should be on screen.
+    func hide() {
+        controller.islandExpanded = false
+        panel.orderOut(nil)
+        for monitor in [clickMonitor, localClickMonitor, mouseMoveMonitor, localMouseMoveMonitor] {
+            if let monitor { NSEvent.removeMonitor(monitor) }
+        }
+        clickMonitor = nil
+        localClickMonitor = nil
+        mouseMoveMonitor = nil
+        localMouseMoveMonitor = nil
+    }
+
     /// The island's current bounds in screen coordinates.
     private var islandScreenRect: CGRect {
         let r = container.interactiveRect

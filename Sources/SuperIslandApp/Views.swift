@@ -661,6 +661,9 @@ struct MenuBarContent: View {
                 HStack {
                     OpenSettingsButton()
                     Button("Welcome Tour…") { controller.showOnboarding() }
+                    if settings.diagnosticsEnabled {
+                        Button("Logs…") { controller.showLogs() }
+                    }
                     Spacer()
                     Button("Check for Updates…") { updater.checkForUpdates() }
                         .disabled(!updater.canCheckForUpdates)

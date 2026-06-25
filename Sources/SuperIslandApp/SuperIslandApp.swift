@@ -49,6 +49,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var island: NotchIslandController?
     private var bannerHost: AlertBannerHostController?
     private let hotkey = HotkeyManager()
+    private let diagnosticsHotkey = DiagnosticsHotkey()
+    private let logsWindow = LogsWindowController()
     private var services: SuperIslandServicesProvider?
     private var onboarding: OnboardingWindowController?
     private var cancellables = Set<AnyCancellable>()
@@ -61,7 +63,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.start()
 
         let island = NotchIslandController(controller: controller)
-        island.show()
+        // The island is part of the app's active surface — only show it while
+        // signed in. `onActiveChange` fires on every later sign-in/out.
+        controller.onActiveChange = { [weak island] active in
+            active ? island?.show() : island?.hide()
+        }
+        if controller.auth.isSignedIn { island.show() }
         self.island = island
 
         let bannerHost = AlertBannerHostController(controller: controller)
@@ -71,6 +78,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let onboarding = OnboardingWindowController(controller: controller)
         controller.showOnboardingRequested = { [weak onboarding] in onboarding?.show() }
         onboarding.showIfNeeded()
+
+        // Internal diagnostics: ⌃⌥⌘L toggles the hidden "Logs…" affordance and
+        // opens the viewer. The menu-bar "Logs…" item routes here too.
+        controller.showLogsRequested = { [weak self] in self?.logsWindow.show() }
+        diagnosticsHotkey.install { [weak self] in
+            guard let self else { return }
+            let nowOn = !self.controller.settings.diagnosticsEnabled
+            self.controller.settings.diagnosticsEnabled = nowOn
+            DiagnosticLogger.shared.log(.app, "diagnostics \(nowOn ? "enabled" : "disabled")")
+            if nowOn { self.logsWindow.show() } else { self.logsWindow.close() }
+        }
         self.onboarding = onboarding
 
         // Register hotkey using stored key/modifier settings.

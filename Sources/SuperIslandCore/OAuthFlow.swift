@@ -41,10 +41,12 @@ public enum OAuthFlow {
     ) -> URL {
         var comps = URLComponents(url: baseURL, resolvingAgainstBaseURL: false)!
         comps.path = "/auth/v1/authorize"
+        // PKCE is signalled by code_challenge + code_challenge_method; there is
+        // no `flow_type` param on Supabase's /authorize — passing one leaks
+        // through to the provider's URL.
         comps.queryItems = [
             .init(name: "provider", value: provider.rawValue),
             .init(name: "redirect_to", value: redirectTo),
-            .init(name: "flow_type", value: "pkce"),
             .init(name: "code_challenge", value: codeChallenge),
             .init(name: "code_challenge_method", value: "s256"),
         ]
