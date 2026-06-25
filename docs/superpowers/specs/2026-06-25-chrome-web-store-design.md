@@ -77,9 +77,19 @@ authorizes the right origin.
 
 ### Permission justifications (Google will ask)
 
-- **`<all_urls>` / host permissions + content script:** Tasks the user tracks can
-  run on any website (CI dashboards, AI assistants, web apps), so status
-  detection must be able to read the active page's visible text on any site.
+The dashboard asks for `activeTab` and "Host permission" as separate fields.
+
+- **`activeTab`:** Read the currently focused tab's content and identity at the
+  moment the user marks it for tracking from the SuperIsland desktop app, so the
+  app can monitor that task and return the user to the exact tab when it finishes
+  or needs attention. Limited to the tab the user is actively interacting with.
+- **Host permission (`<all_urls>`) + content script:** The single purpose is to
+  detect the status of in-progress tasks in web pages and return the user to the
+  relevant tab. Those tasks can run on any website (CI/deploy dashboards, AI
+  assistants like ChatGPT/Claude, web IDEs, other web apps), so the content
+  script must read visible page state on whichever sites the user chooses to
+  track. The data is sent only to the local SuperIsland app via native
+  messaging, never to a third party.
 - **`tabs`:** Identify and re-focus the exact tab a tracked task lives in.
 - **`scripting`:** Read a lightweight summary of the current page to judge task
   status.
