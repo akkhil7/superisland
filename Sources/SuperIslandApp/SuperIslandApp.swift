@@ -31,6 +31,7 @@ struct SuperIslandApp: App {
         SwiftUI.Settings {
             SettingsView()
                 .environmentObject(appDelegate.controller)
+                .environmentObject(appDelegate.updater)
                 .environmentObject(appDelegate.controller.settings)
                 .environmentObject(appDelegate.controller.permissions)
                 .environmentObject(appDelegate.controller.shellIntegration)

@@ -587,7 +587,6 @@ struct MenuBarContent: View {
     @EnvironmentObject var store: DropStore
     @EnvironmentObject var permissions: PermissionsManager
     @EnvironmentObject var settings: Settings
-    @EnvironmentObject private var updater: SoftwareUpdater
     @EnvironmentObject var auth: AuthService
 
     /// Accessibility is always required; Screen Recording only when the user
@@ -598,6 +597,16 @@ struct MenuBarContent: View {
     }
 
     var body: some View {
+        content
+            // `MenuBarExtra(.window)` hosts this view over a system vibrancy
+            // (NSVisualEffectView) background, which renders translucent unless
+            // the user has "Reduce transparency" enabled. Paint an opaque
+            // window-colored background so the dropdown is solid on every Mac.
+            .background(Color(nsColor: .windowBackgroundColor))
+    }
+
+    @ViewBuilder
+    private var content: some View {
         if !auth.isSignedIn {
             VStack(spacing: 13) {
                 Text("Sign in to use SuperIsland")
@@ -660,13 +669,10 @@ struct MenuBarContent: View {
                 Divider()
                 HStack {
                     OpenSettingsButton()
-                    Button("Welcome Tour…") { controller.showOnboarding() }
                     if settings.diagnosticsEnabled {
                         Button("Logs…") { controller.showLogs() }
                     }
                     Spacer()
-                    Button("Check for Updates…") { updater.checkForUpdates() }
-                        .disabled(!updater.canCheckForUpdates)
                     Button("Quit") { NSApplication.shared.terminate(nil) }
                 }
             }

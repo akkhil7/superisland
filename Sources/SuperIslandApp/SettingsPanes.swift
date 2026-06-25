@@ -568,6 +568,7 @@ struct PermissionsSettingsPane: View {
 
 struct AboutSettingsPane: View {
     @EnvironmentObject var controller: AppController
+    @EnvironmentObject var updater: SoftwareUpdater
 
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "—"
@@ -591,6 +592,10 @@ struct AboutSettingsPane: View {
             Divider()
                 .padding(.vertical, 10)
                 .padding(.horizontal, 60)
+
+            Button("Check for Updates…") { updater.checkForUpdates() }
+                .disabled(!updater.canCheckForUpdates)
+                .padding(.bottom, 4)
 
             Link("Send Feedback", destination: URL(string: "mailto:hi@drop.dev")!)
                 .font(.caption)
