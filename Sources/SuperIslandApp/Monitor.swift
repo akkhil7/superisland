@@ -187,13 +187,16 @@ final class SuperIslandMonitor: ObservableObject {
                 guard let current = store.drop(id: id),
                     isExternallyManaged?(current) != true
                 else { return }
+                dlog(.proxy, "classify \(target.appName) → \(verdict.status.rawValue)")
                 store.updateStatusAndLabel(
                     id: id, to: verdict.status, label: verdict.label, reason: verdict.reason
                 )
             } catch let ClassifierError.quotaExceeded(used, cap) {
+                dlog(.proxy, "classify quota exceeded \(used)/\(cap)")
                 store.updateStatus(
                     id: id, to: .unknown, reason: "Daily limit reached (\(used)/\(cap))")
             } catch {
+                dlog(.error, "classify error: \(error.localizedDescription)")
                 store.updateStatus(id: id, to: .unknown, reason: "AI error: \(error)")
             }
             scheduleNextCheck()

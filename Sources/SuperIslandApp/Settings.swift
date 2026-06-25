@@ -65,7 +65,14 @@ final class Settings: ObservableObject {
         didSet { defaults.set(hotkeyModifiers, forKey: Keys.hotkeyModifiers) }
     }
 
+    /// Internal diagnostics mode (revealed by the ⌃⌥⌘L chord). Persisted so the
+    /// "Logs…" affordance stays put across launches once turned on.
+    @Published var diagnosticsEnabled: Bool {
+        didSet { defaults.set(diagnosticsEnabled, forKey: Keys.diagnosticsEnabled) }
+    }
+
     enum Keys {
+        static let diagnosticsEnabled = "diagnosticsEnabled"
         static let useScreenshots = "useScreenshots"
         static let rememberVisualState = "rememberVisualState"
         static let islandExpandOnHover = "islandExpandOnHover"
@@ -91,6 +98,7 @@ final class Settings: ObservableObject {
             defaults.object(forKey: Keys.codexIntegrationEnabled) as? Bool ?? true
         launchAtLogin = SMAppService.mainApp.status == .enabled
         autoDismissMinutes = defaults.object(forKey: Keys.autoDismiss) as? Int ?? 0
+        diagnosticsEnabled = defaults.object(forKey: Keys.diagnosticsEnabled) as? Bool ?? false
         let storedKeyCode =
             defaults.object(forKey: Keys.hotkeyKeyCode) as? Int ?? Self.defaultKeyCode
         let storedModifiers =

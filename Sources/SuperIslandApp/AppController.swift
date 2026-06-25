@@ -117,6 +117,7 @@ final class AppController: ObservableObject {
             .removeDuplicates()
             .sink { [weak self] signedIn in
                 guard let self else { return }
+                dlog(.app, signedIn ? "active — monitoring on" : "locked — signed out")
                 if signedIn { self.monitor.start() } else { self.monitor.stop() }
                 self.onActiveChange?(signedIn)
             }
@@ -793,6 +794,7 @@ final class AppController: ObservableObject {
             restoreMemoryID: restoreMemoryID
         )
         store.add(drop)
+        dlog(.app, "drop created: \(drop.label) [\(front.bundleID)]")
         if let restoreMemoryID {
             Task { @MainActor [restoreGuidance] in
                 await restoreGuidance.captureMemory(id: restoreMemoryID, target: target)
@@ -985,6 +987,11 @@ final class AppController: ObservableObject {
     var showOnboardingRequested: (() -> Void)?
 
     func showOnboarding() { showOnboardingRequested?() }
+
+    /// Set by the AppDelegate so the menu-bar "Logs…" item can open the viewer.
+    var showLogsRequested: (() -> Void)?
+
+    func showLogs() { showLogsRequested?() }
 
     /// Brief island expansion after onboarding finishes — a visual "it lives
     /// here" pointer at the notch.
