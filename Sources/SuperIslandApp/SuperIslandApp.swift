@@ -61,7 +61,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         controller.start()
 
         let island = NotchIslandController(controller: controller)
-        island.show()
+        // The island is part of the app's active surface — only show it while
+        // signed in. `onActiveChange` fires on every later sign-in/out.
+        controller.onActiveChange = { [weak island] active in
+            active ? island?.show() : island?.hide()
+        }
+        if controller.auth.isSignedIn { island.show() }
         self.island = island
 
         let bannerHost = AlertBannerHostController(controller: controller)
