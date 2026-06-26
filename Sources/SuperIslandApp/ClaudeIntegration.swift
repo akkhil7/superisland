@@ -201,6 +201,17 @@ final class ClaudeIntegration: ObservableObject {
             : (.done, "Claude finished — ready for you")
     }
 
+    /// True when the transcript tail shows a tool still pending — a `tool_use`
+    /// with no matching `tool_result` yet. That's the only state a tool blocked
+    /// on your approval can be in; if the tool has already completed, a stalled
+    /// `PreToolUse` was just a gap between tools (Claude thinking), not a
+    /// prompt. Reads the transcript directly, so it stays accurate even when
+    /// the `PostToolUse` hook is delayed or never reaches us.
+    func isToolPending(transcriptPath: String) -> Bool {
+        guard let tail = Self.readTail(path: transcriptPath, bytes: 64 * 1024) else { return false }
+        return ClaudeTranscript.state(fromTail: tail) == .working
+    }
+
     private static func readTail(path: String, bytes: Int) -> String? {
         guard let handle = FileHandle(forReadingAtPath: path) else { return nil }
         defer { try? handle.close() }

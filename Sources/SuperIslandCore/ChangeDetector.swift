@@ -44,4 +44,16 @@ public final class BackoffScheduler {
         }
         nextCheckTime = now.addingTimeInterval(currentInterval)
     }
+
+    /// Re-sample again after a fixed short delay, WITHOUT taking a backoff step.
+    /// Used for *settled* drops (done / needsAttention): they're re-checked
+    /// often enough to notice the user resuming (~`interval`s), while the
+    /// expensive AI re-classification stays gated on an actual content change —
+    /// so they never stretch out to the exponential-backoff cap the way an
+    /// idle working drop does. Leaves `currentInterval` untouched, so once the
+    /// drop resumes and `advance` runs again, normal backoff continues from
+    /// where it was.
+    public func recheck(after interval: TimeInterval, now: Date = Date()) {
+        nextCheckTime = now.addingTimeInterval(interval)
+    }
 }

@@ -1,14 +1,18 @@
 import AppKit
 import ApplicationServices
+import SuperIslandCore
 
 /// A point-in-time read of a window: its accessibility text.
 /// Feeds the change detector, prefilter, and classifier.
 struct Snapshot {
     var axText: String
 
-    /// Cheap content hash used by the ChangeDetector.
+    /// Cheap content hash used by the ChangeDetector. Normalized so cosmetic
+    /// churn (relative timestamps, wall-clock times, whitespace) doesn't read
+    /// as a content change — otherwise a *settled* drop, re-sampled often,
+    /// would re-classify and flip-flop every few seconds. See `ContentDigest`.
     var contentHash: Int {
-        axText.hashValue
+        ContentDigest.hash(axText)
     }
 }
 
