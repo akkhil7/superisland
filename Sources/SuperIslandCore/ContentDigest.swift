@@ -31,7 +31,10 @@ public enum ContentDigest {
 
     private static let replacements: [(String, String)] = [
         // "<n> <unit> ago" (2 minutes ago, 45s ago, 3 hrs ago, …) and "just now".
-        (#"\b\d+\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|wk|wks|week|weeks|mo|month|months|y|yr|yrs|year|years)\s+ago\b"#, " "),
+        (
+            #"\b\d+\s*(s|sec|secs|second|seconds|m|min|mins|minute|minutes|h|hr|hrs|hour|hours|d|day|days|w|wk|wks|week|weeks|mo|month|months|y|yr|yrs|year|years)\s+ago\b"#,
+            " "
+        ),
         (#"\bjust now\b"#, " "),
         // Wall-clock times: 10:42, 10:42:07, 10:42 pm.
         (#"\b\d{1,2}:\d{2}(:\d{2})?\s*([ap]m)?\b"#, " "),
