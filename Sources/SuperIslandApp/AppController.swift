@@ -265,28 +265,26 @@ final class AppController: ObservableObject {
         // one that's running. Treat a PreToolUse that nothing supersedes within
         // a few seconds as "needs you". Only bypassPermissions auto-runs every
         // tool; acceptEdits still prompts for Bash and friends, so it must arm.
-        if event.event == "PreToolUse", Self.isPromptingMode(event.permissionMode) {
+        if event.event == "PreToolUse", ClaudePermissionMode.canPrompt(event.permissionMode) {
             HookDebugLog.log(
                 "  → armed permission-stall (gen=\(generation)) for drop=\(drop.id.uuidString.prefix(8))"
             )
-            armPermissionStall(dropID: drop.id, label: label, generation: generation)
-        }
-    }
-
-    /// True for permission modes where the next tool call can prompt the user.
-    /// Only `bypassPermissions` runs every tool without prompting. `acceptEdits`
-    /// auto-accepts file edits but STILL prompts for Bash and other tools — the
-    /// case that was being missed — so it counts as prompting here.
-    private static func isPromptingMode(_ mode: String?) -> Bool {
-        switch mode {
-        case "bypassPermissions": return false
-        default: return true  // "default" / "plan" / unspecified → prompts
+            armPermissionStall(
+                dropID: drop.id, label: label, generation: generation,
+                transcriptPath: event.transcriptPath
+            )
         }
     }
 
     /// If no later event arrives for this drop within a few seconds, the tool
-    /// is blocked on the user — surface it as needs-attention.
-    private func armPermissionStall(dropID: UUID, label: String?, generation: Int) {
+    /// *may* be blocked on the user. Before surfacing needs-attention, verify
+    /// against the transcript that a tool is genuinely pending — otherwise the
+    /// gap was just Claude thinking between tools, and flipping to
+    /// needs-attention would be a false alarm that bounces straight back to
+    /// working on the next event.
+    private func armPermissionStall(
+        dropID: UUID, label: String?, generation: Int, transcriptPath: String?
+    ) {
         Task { @MainActor [weak self] in
             try? await Task.sleep(for: .seconds(5))
             guard let self,
@@ -299,13 +297,26 @@ final class AppController: ObservableObject {
                 )
                 return
             }
+            // Ground-truth gate: a tool blocked on your approval shows up as a
+            // pending tool_use (no tool_result yet) in the transcript. If the
+            // tool already completed, this stall is a think-gap, not a prompt —
+            // don't false-flag it. (No transcript path → can't verify → stay
+            // silent rather than risk a false red.)
+            guard let transcriptPath,
+                self.claudeIntegration.isToolPending(transcriptPath: transcriptPath)
+            else {
+                HookDebugLog.log(
+                    "  → permission-stall (gen=\(generation)) skipped — no pending tool (think-gap) for drop=\(dropID.uuidString.prefix(8))"
+                )
+                return
+            }
             HookDebugLog.log(
                 "  → permission-stall FIRED → needsAttention for drop=\(dropID.uuidString.prefix(8))"
             )
-            self.store.updateStatusAndLabel(
-                id: dropID, to: .needsAttention, label: label,
-                reason: "Claude needs your permission"
+            self.store.updateStatus(
+                id: dropID, to: .needsAttention, reason: "Claude needs your permission"
             )
+            self.store.nameIfUnnamed(id: dropID, label: label)
         }
     }
 

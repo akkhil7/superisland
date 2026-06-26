@@ -65,4 +65,40 @@ final class BackoffSchedulerTests: XCTestCase {
         XCTAssertFalse(s.isDue(now: date(t + 19)))
         XCTAssertTrue(s.isDue(now: date(t + 21)))
     }
+
+    // MARK: - recheck(after:) — fast fixed cadence for settled drops
+
+    func testRecheckSchedulesAtFixedShortDelay() {
+        let s = BackoffScheduler(baseInterval: 20, backoffFactor: 1.5)
+        // Pretend the drop backed off to a long interval first.
+        s.advance(contentChanged: false, now: date(0))
+        s.advance(contentChanged: false, now: date(30))
+        XCTAssertGreaterThan(s.currentInterval, 30)
+        // A settled drop asks to be sampled again soon, regardless of backoff.
+        s.recheck(after: 5, now: date(100))
+        XCTAssertFalse(s.isDue(now: date(104)))
+        XCTAssertTrue(s.isDue(now: date(106)))
+    }
+
+    func testRecheckDoesNotGrowTheBackoffWindow() {
+        // recheck is a fixed re-sample, not a backoff step: calling it
+        // repeatedly must keep firing at the same short cadence (so a parked
+        // settled drop never stretches out to minutes).
+        let s = BackoffScheduler(baseInterval: 20, backoffFactor: 1.5)
+        var t: TimeInterval = 0
+        for _ in 0..<10 {
+            s.recheck(after: 5, now: date(t))
+            t += 5
+            XCTAssertTrue(s.isDue(now: date(t)))
+        }
+    }
+
+    func testAdvanceAfterRecheckStillResetsToBaseOnChange() {
+        // After a settled drop resumes (content changed → AI runs → working),
+        // the normal backoff takes back over from base.
+        let s = BackoffScheduler(baseInterval: 20, backoffFactor: 1.5)
+        s.recheck(after: 5, now: date(0))
+        s.advance(contentChanged: true, now: date(5))
+        XCTAssertEqual(s.currentInterval, 20, accuracy: 0.01)
+    }
 }

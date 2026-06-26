@@ -61,6 +61,20 @@ public final class DropStore: ObservableObject {
         save()
     }
 
+    /// Name a drop only if it has no real name yet — its label is still the
+    /// app/window-title placeholder it was born with. Sources that re-fire
+    /// periodically (the AI monitor, an evolving Claude session title) use this
+    /// so a drop is named *once* and its identity never churns afterward.
+    public func nameIfUnnamed(id: Drop.ID, label: String?) {
+        guard let label,
+            !label.isEmpty,
+            let i = index(of: id),
+            LabelPolicy.isPlaceholder(drops[i].label, target: drops[i].target)
+        else { return }
+        drops[i].label = label
+        save()
+    }
+
     /// Re-bind a drop's content URL (e.g. attach a Codex CLI session that
     /// started inside an already-dropped terminal). nil clears the binding.
     public func setContentURL(id: Drop.ID, url: String?) {

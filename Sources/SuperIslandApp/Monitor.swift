@@ -20,6 +20,12 @@ final class SuperIslandMonitor: ObservableObject {
     /// populating reach a real verdict in a few seconds instead of 30–80s.
     private let unreadableFastRetries = 3
 
+    /// How often a *settled* drop (done / needsAttention) is re-sampled to
+    /// notice the user resuming. Matches the base tick so resume detection is
+    /// ~5s — the cheap local AX read runs at this cadence, but the expensive AI
+    /// re-classification only fires when the window content actually changed.
+    static let settledRecheckInterval: TimeInterval = 5
+
     /// Drops driven by an event source (Claude Code hooks) — ground truth that
     /// makes AI polling unnecessary and potentially conflicting.
     var isExternallyManaged: ((Drop) -> Bool)?
@@ -105,6 +111,7 @@ final class SuperIslandMonitor: ObservableObject {
                 axWindow: axWindow
             )
 
+            let hadBaseline = lastHashes[id] != nil
             let contentChanged = lastHashes[id].map { $0 != snapshot.contentHash } ?? false
             lastHashes[id] = snapshot.contentHash
             // Advance the backoff schedule only once we've actually *read* the
@@ -113,8 +120,21 @@ final class SuperIslandMonitor: ObservableObject {
             // that before the readability gate pushed the first real verdict
             // out to 30–80s. These retries are local (no API call), so
             // re-checking at the base 5s tick is cheap.
+            //
+            // A *settled* drop (done / needsAttention) re-samples at a fast
+            // fixed cadence instead of backing off, so the user resuming the
+            // conversation is noticed in ~5s rather than after the backoff has
+            // stretched to minutes. The expensive AI call still only fires when
+            // the (normalized) content actually changed — see the freeze gate
+            // below and `MonitorPolicy.shouldClassify` — so this stays cheap
+            // and never re-introduces the done↔needsAttention flicker.
             @MainActor func scheduleNextCheck() {
-                schedulers[id]?.advance(contentChanged: contentChanged, now: Date())
+                let status = store.drop(id: id)?.status
+                if status == .done || status == .needsAttention {
+                    schedulers[id]?.recheck(after: Self.settledRecheckInterval, now: Date())
+                } else {
+                    schedulers[id]?.advance(contentChanged: contentChanged, now: Date())
+                }
             }
 
             // Apps with internal tabs share one window across many tasks. If
@@ -162,6 +182,20 @@ final class SuperIslandMonitor: ObservableObject {
             // We got a real read — clear the fast-retry counter.
             unreadableCounts[id] = nil
 
+            // A drop that has settled (done / needs-attention) is frozen until
+            // its window actually changes: re-classifying a finished
+            // conversation only flip-flops its verdict (done ↔ needsAttention)
+            // and burns quota. A real content change — the user resumed — lifts
+            // the freeze, and the classification below carries it back to
+            // working. `working`/`unknown` always re-classify.
+            if let status = store.drop(id: id)?.status,
+                !MonitorPolicy.shouldClassify(
+                    status: status, contentChanged: contentChanged, hasBaseline: hadBaseline)
+            {
+                scheduleNextCheck()
+                return
+            }
+
             let input = ClassificationInput(
                 appName: target.appName,
                 windowTitle: target.windowTitle,
@@ -178,9 +212,12 @@ final class SuperIslandMonitor: ObservableObject {
                     isExternallyManaged?(current) != true
                 else { return }
                 dlog(.proxy, "classify \(target.appName) → \(verdict.status.rawValue)")
-                store.updateStatusAndLabel(
-                    id: id, to: verdict.status, label: verdict.label, reason: verdict.reason
-                )
+                // Status updates every time; the label is set ONCE (while the
+                // drop is still an app/window-title placeholder) and never
+                // re-derived — a drop's name is its identity and must not churn
+                // across re-classifications.
+                store.updateStatus(id: id, to: verdict.status, reason: verdict.reason)
+                store.nameIfUnnamed(id: id, label: verdict.label)
             } catch let ClassifierError.quotaExceeded(used, cap) {
                 dlog(.proxy, "classify quota exceeded \(used)/\(cap)")
                 store.updateStatus(

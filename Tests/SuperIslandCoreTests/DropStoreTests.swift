@@ -63,6 +63,31 @@ final class DropStoreTests: XCTestCase {
         XCTAssertEqual(reloaded.drops.first?.target.bundleID, "com.apple.Terminal")
     }
 
+    func testNameIfUnnamedFillsPlaceholderThenSticks() {
+        let store = DropStore(fileURL: tempURL())
+        // Born with the bare app name as its label — a placeholder.
+        let k = sampleDrop(label: "Terminal")
+        store.add(k)
+
+        // First naming replaces the placeholder.
+        store.nameIfUnnamed(id: k.id, label: "Deploy the API")
+        XCTAssertEqual(store.drop(id: k.id)?.label, "Deploy the API")
+
+        // A later re-classification must NOT churn an already-named drop.
+        store.nameIfUnnamed(id: k.id, label: "Some other guess")
+        XCTAssertEqual(store.drop(id: k.id)?.label, "Deploy the API")
+    }
+
+    func testNameIfUnnamedIgnoresEmptyLabel() {
+        let store = DropStore(fileURL: tempURL())
+        let k = sampleDrop(label: "Terminal")
+        store.add(k)
+        store.nameIfUnnamed(id: k.id, label: "")
+        XCTAssertEqual(store.drop(id: k.id)?.label, "Terminal")
+        store.nameIfUnnamed(id: k.id, label: nil)
+        XCTAssertEqual(store.drop(id: k.id)?.label, "Terminal")
+    }
+
     func testLocatorCodableRoundTrip() throws {
         let locators: [Locator] = [
             .generic(axWindowTitle: "Notes", axWindowIndex: 0),
