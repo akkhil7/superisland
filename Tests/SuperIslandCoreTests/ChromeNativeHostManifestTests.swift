@@ -22,9 +22,27 @@ final class ChromeNativeHostManifestTests: XCTestCase {
         )
     }
 
+    func testAuthorizesMultipleExtensionIDs() throws {
+        let manifest = try ChromeNativeHostManifest(
+            extensionIDs: [
+                "storeidaaaaaaaaaaaaaaaaaaaaaaaaa", "devidbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+            ],
+            hostPath: "/host"
+        )
+        XCTAssertEqual(
+            manifest.allowedOrigins,
+            [
+                "chrome-extension://storeidaaaaaaaaaaaaaaaaaaaaaaaaa/",
+                "chrome-extension://devidbbbbbbbbbbbbbbbbbbbbbbbbbbbb/",
+            ])
+    }
+
     func testRejectsEmptyExtensionID() {
         XCTAssertThrowsError(
             try ChromeNativeHostManifest(extensionID: "   ", hostPath: "/host")
+        )
+        XCTAssertThrowsError(
+            try ChromeNativeHostManifest(extensionIDs: ["  ", ""], hostPath: "/host")
         )
     }
 }

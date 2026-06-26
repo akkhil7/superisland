@@ -2,11 +2,23 @@ import XCTest
 @testable import SuperIslandCore
 
 final class ChromeExtensionIdentityTests: XCTestCase {
-    func testPinnedIDMatchesPinnedKey() {
+    func testPinnedDevKeyDerivesToDevID() {
+        // The pinned manifest key is the unpacked/dev key → devExtensionID.
         XCTAssertEqual(
             ChromeExtensionIdentity.extensionID(forBase64Key: ChromeExtensionIdentity.manifestKey),
-            ChromeExtensionIdentity.extensionID
+            ChromeExtensionIdentity.devExtensionID
         )
+    }
+
+    func testHostAuthorizesBothStoreAndDevIDs() {
+        XCTAssertEqual(
+            ChromeExtensionIdentity.allowedExtensionIDs,
+            [
+                ChromeExtensionIdentity.storeExtensionID,
+                ChromeExtensionIdentity.devExtensionID,
+            ])
+        XCTAssertEqual(
+            ChromeExtensionIdentity.extensionID, ChromeExtensionIdentity.storeExtensionID)
     }
 
     func testManifestJSONKeyMatchesPinnedKey() throws {

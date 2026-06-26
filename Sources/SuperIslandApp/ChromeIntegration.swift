@@ -14,6 +14,8 @@ final class ChromeIntegration: ObservableObject {
     @Published private(set) var isBridgeConnected = false
 
     static let extensionID = ChromeExtensionIdentity.extensionID
+    /// Both the published store ID and the unpacked dev ID — either can connect.
+    static let allowedExtensionIDs = ChromeExtensionIdentity.allowedExtensionIDs
 
     init() {
         refresh()
@@ -21,7 +23,7 @@ final class ChromeIntegration: ObservableObject {
 
     func refresh() {
         isNativeHostInstalled = !installedManifestURLs.isEmpty
-        isExtensionLoaded = Self.scanChromeProfiles(for: Self.extensionID)
+        isExtensionLoaded = Self.allowedExtensionIDs.contains { Self.scanChromeProfiles(for: $0) }
         isBridgeConnected = ChromeBridgeStateStore.shared.isConnected
     }
 
@@ -39,7 +41,7 @@ final class ChromeIntegration: ObservableObject {
             throw ChromeIntegrationError.missingHostExecutable
         }
         let manifest = try ChromeNativeHostManifest(
-            extensionID: Self.extensionID, hostPath: hostPath
+            extensionIDs: Self.allowedExtensionIDs, hostPath: hostPath
         )
         let data = try JSONEncoder.pretty.encode(manifest)
 
