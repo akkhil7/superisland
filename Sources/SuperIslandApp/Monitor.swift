@@ -216,7 +216,16 @@ final class SuperIslandMonitor: ObservableObject {
                 // drop is still an app/window-title placeholder) and never
                 // re-derived — a drop's name is its identity and must not churn
                 // across re-classifications.
-                store.updateStatus(id: id, to: verdict.status, reason: verdict.reason)
+                //
+                // For chrome drops the extension bridge owns the live `working`
+                // signal, so an AI `working` verdict is ignored (the bridge will
+                // report working itself). `done`/`needsAttention` still apply —
+                // that's how a settled chrome turn reaches needsAttention.
+                if ChromeStatusPolicy.monitorMayApply(
+                    verdict: verdict.status, locator: target.locator)
+                {
+                    store.updateStatus(id: id, to: verdict.status, reason: verdict.reason)
+                }
                 store.nameIfUnnamed(id: id, label: verdict.label)
             } catch let ClassifierError.quotaExceeded(used, cap) {
                 dlog(.proxy, "classify quota exceeded \(used)/\(cap)")

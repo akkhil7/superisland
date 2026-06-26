@@ -136,15 +136,78 @@ final class AppController: ObservableObject {
             self?.handleCodexHookEvent(event)
         }
         shellServer.start()
+        chromeBridgeServer.onTabState = { [weak self] event in
+            self?.handleChromeTabEvent(event)
+        }
         monitor.isExternallyManaged = { [weak self] drop in
             guard let self else { return false }
             if self.hookManagedDrops.contains(drop.id) { return true }
+            // The extension bridge owns a chrome drop's live `working` signal.
+            // Skip the AI classifier only while a turn is actively working; once
+            // it settles, let the classifier resolve done vs needsAttention. On
+            // bridge disconnect this falls back to full AI classification.
+            if case .chrome = drop.target.locator {
+                return ChromeStatusPolicy.bridgeOwnsLiveStatus(
+                    locator: drop.target.locator,
+                    status: drop.status,
+                    bridgeConnected: ChromeBridgeStateStore.shared.isConnected)
+            }
             // Codex drops are rollout-driven; AI polling would read whatever
             // thread happens to be visible onto them.
             return self.settings.codexIntegrationEnabled
                 && drop.target.contentURL?.hasPrefix(CodexIntegration.sessionURLPrefix) == true
         }
         startCodexWatcher()
+    }
+
+    // MARK: - Chrome bridge (extension is ground truth for web-AI drops)
+
+    /// A `tab_state` event carries the extension's network-derived status for one
+    /// Chrome tab. Route it to the matching `.chrome` drop; the AI monitor leaves
+    /// that drop alone while the bridge is live (see `isExternallyManaged`). The
+    /// host allowlist is already enforced by `ChromeBridgeServer` before this runs.
+    private func handleChromeTabEvent(_ event: ChromeBridgeExtensionEvent) {
+        guard auth.isSignedIn else { return }  // signed out → app is locked
+        guard let tab = event.tab,
+            let status = tab.status ?? event.domSummary?.taskState
+        else { return }
+        guard let drop = chromeDrop(matching: tab) else {
+            dlog(.proxy, "chrome tab_state \(status.rawValue) — no drop for \(tab.url ?? "?")")
+            return
+        }
+        dlog(.proxy, "chrome tab_state \(status.rawValue) → drop \(drop.id)")
+        store.updateStatus(id: drop.id, to: status, reason: Self.chromeReason(status))
+    }
+
+    /// The `.chrome` drop an incoming tab_state belongs to. Primary key is the
+    /// extension `tabID` — reliable only when the drop's `windowID != nil`, which
+    /// marks an extension-id-space tabID (see `Adapters`). Falls back to exact URL
+    /// for drops captured while the bridge was down (their tabID is an AppleScript
+    /// id that never equals an extension id).
+    private func chromeDrop(matching tab: ChromeTabState) -> Drop? {
+        if let hit = store.drops.first(where: { drop in
+            guard case let .chrome(windowID, _, _, tabID, _, _, _, _) = drop.target.locator
+            else { return false }
+            return windowID != nil && tabID != nil && tabID == tab.tabID
+        }) {
+            return hit
+        }
+        guard let url = tab.url, !url.isEmpty else { return nil }
+        return store.drops.first { drop in
+            guard case let .chrome(_, _, _, _, dropURL, _, _, _) = drop.target.locator
+            else { return false }
+            return dropURL == url
+        }
+    }
+
+    private static func chromeReason(_ status: DropStatus) -> String {
+        switch status {
+        case .working: return "Generating…"
+        case .done: return "Response ready"
+        case .needsAttention: return "Needs your input"
+        case .stale: return "Tab closed"
+        case .unknown: return "Idle"
+        }
     }
 
     // MARK: - Codex (rollout watching; /codex endpoint serves CLI hooks only)
