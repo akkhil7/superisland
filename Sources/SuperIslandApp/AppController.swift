@@ -160,12 +160,15 @@ final class AppController: ObservableObject {
             return
         }
         // Terminal drops: the hook reports the CLI's controlling TTY. Bind the
-        // session id too, so the rollout watcher can keep driving status.
-        if let drop = terminalDrop(tty: event.tty) {
-            hookManagedDrops.insert(drop.id)
+        // session id too, so the rollout watcher can keep driving status. If
+        // another drop already holds this session the bind is refused — leave
+        // that drop as the session's sole owner rather than double-tracking.
+        if let drop = terminalDrop(tty: event.tty),
             store.setContentURL(
                 id: drop.id, url: CodexIntegration.sessionURLPrefix + event.sessionID
             )
+        {
+            hookManagedDrops.insert(drop.id)
             apply(
                 update, to: drop,
                 label: AgentSessionLabel.label(agent: "Codex", prompt: event.prompt)
@@ -767,6 +770,15 @@ final class AppController: ObservableObject {
         // (otherwise the drop falls back to the bare app name "Claude").
         if front.bundleID == ClaudeDeepLink.bundleID, let url = contentURL {
             threadLabel = claudeIntegration.sessionTitle(forContentURL: url)
+        }
+
+        // A session is tracked by at most one drop. If this window already
+        // resolves to a session another drop holds, refuse instead of creating
+        // a duplicate that would race the original for the same status updates.
+        if let url = contentURL, store.drop(forContentURL: url) != nil {
+            showToast("Already tracking this session")
+            NSSound.beep()
+            return false
         }
 
         let target = WindowTarget(

@@ -37,9 +37,21 @@ public final class DropStore: ObservableObject {
 
     // MARK: - Mutations
 
-    public func add(_ drop: Drop) {
+    /// Append a new drop, unless it already points at a session another drop
+    /// holds. A drop's non-nil `contentURL` is its session pointer; the store
+    /// guarantees at most one drop per session, so a task is never tracked
+    /// twice. Drops without a session pointer (nil contentURL) always append.
+    /// Returns false when the drop was rejected as a duplicate session.
+    @discardableResult
+    public func add(_ drop: Drop) -> Bool {
+        if let url = drop.target.contentURL,
+            sessionOwnerIndex(forContentURL: url, excluding: drop.id) != nil
+        {
+            return false
+        }
         drops.append(drop)
         save()
+        return true
     }
 
     public func remove(id: Drop.ID) {
@@ -77,10 +89,24 @@ public final class DropStore: ObservableObject {
 
     /// Re-bind a drop's content URL (e.g. attach a Codex CLI session that
     /// started inside an already-dropped terminal). nil clears the binding.
-    public func setContentURL(id: Drop.ID, url: String?) {
-        guard let i = index(of: id) else { return }
+    /// Refuses — and returns false — when another drop already holds that
+    /// session, so binding can never produce two drops on one session.
+    /// Clearing (nil) and re-setting a drop's own URL always succeed.
+    @discardableResult
+    public func setContentURL(id: Drop.ID, url: String?) -> Bool {
+        guard let i = index(of: id) else { return false }
+        if let url, sessionOwnerIndex(forContentURL: url, excluding: id) != nil {
+            return false
+        }
         drops[i].target.contentURL = url
         save()
+        return true
+    }
+
+    /// The drop currently bound to `url`, if any. A drop's non-nil
+    /// `contentURL` is its session pointer; at most one drop holds a session.
+    public func drop(forContentURL url: String) -> Drop? {
+        sessionOwnerIndex(forContentURL: url).map { drops[$0] }
     }
 
     /// Apply a new status and, optionally, an AI-generated label to a drop.
@@ -148,10 +174,32 @@ public final class DropStore: ObservableObject {
         drops.firstIndex { $0.id == id }
     }
 
+    /// Index of the drop holding session `url`, ignoring `id` (so a drop never
+    /// collides with itself). nil when the session is free.
+    private func sessionOwnerIndex(
+        forContentURL url: String, excluding id: Drop.ID? = nil
+    ) -> Int? {
+        drops.firstIndex { $0.target.contentURL == url && $0.id != id }
+    }
+
+    /// Keep only the first drop for each session pointer (content URL),
+    /// preserving order. Repairs any duplicates persisted before the
+    /// uniqueness guard existed so the invariant holds from launch onward.
+    static func deduplicatingSessions(_ drops: [Drop]) -> [Drop] {
+        var seen = Set<String>()
+        return drops.filter { drop in
+            guard let url = drop.target.contentURL else { return true }
+            return seen.insert(url).inserted
+        }
+    }
+
     private func load() {
         guard let data = try? Data(contentsOf: fileURL) else { return }
         if let decoded = try? JSONDecoder.drop.decode([Drop].self, from: data) {
-            drops = decoded
+            let deduped = Self.deduplicatingSessions(decoded)
+            drops = deduped
+            // Persist the repair so the file itself stops carrying duplicates.
+            if deduped.count != decoded.count { save() }
         }
     }
 
