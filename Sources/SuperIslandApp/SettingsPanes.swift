@@ -189,16 +189,6 @@ struct GeneralSettingsPane: View {
                 }
             }
 
-            Section {
-                Toggle(isOn: $settings.useScreenshots) {
-                    SettingsRowLabel(
-                        icon: "camera.viewfinder", color: .blue,
-                        title: "Capture screenshots",
-                        subtitle:
-                            "Lets SuperIsland read windows that expose no text (many Electron apps). Sent to Claude only for your drops. Needs Screen Recording."
-                    )
-                }
-            }
         }
         .formStyle(.grouped)
         .frame(height: 400)
@@ -225,7 +215,6 @@ struct IntegrationsSettingsPane: View {
                 claudeCard
                 codexCard
                 chromeCard
-                otherAppsCard
             }
             .padding(16)
         }
@@ -412,7 +401,7 @@ struct IntegrationsSettingsPane: View {
                     .font(.caption)
                     .foregroundStyle(.green)
                     Text(
-                        "Turn on **Developer mode** on the extensions page, then drag the revealed **ChromeExtension** folder onto it (or click “Load unpacked”)."
+                        "Turn on **Developer mode** on the extensions page, then drag the revealed **ChromeExtension** folder onto it (or click \u{201c}Load unpacked\u{201d})."
                     )
                     .settingsCaption()
                     HStack(spacing: 8) {
@@ -454,22 +443,6 @@ struct IntegrationsSettingsPane: View {
         }
     }
 
-    // MARK: Other apps
-
-    private var otherAppsCard: some View {
-        IntegrationCard(
-            icon: "sparkles", color: .purple,
-            title: "Other Apps",
-            status: settings.rememberVisualState ? ("On", .green) : ("Off", .gray)
-        ) {
-            Text(
-                "Apps without a deep integration get encrypted, local-only visual memory: SuperIsland remembers what your task looked like and highlights it when you return — always confirm-before-click."
-            )
-            .settingsCaption()
-            Toggle("Remember visual state for generic apps", isOn: $settings.rememberVisualState)
-                .controlSize(.small)
-        }
-    }
 }
 
 private extension Text {
@@ -484,7 +457,6 @@ private extension Text {
 
 struct PermissionsSettingsPane: View {
     @EnvironmentObject var permissions: PermissionsManager
-    @EnvironmentObject var settings: Settings
 
     var body: some View {
         Form {
@@ -500,21 +472,9 @@ struct PermissionsSettingsPane: View {
                     permissions.requestAccessibility()
                     permissions.openAccessibilitySettings()
                 }
-                permissionRow(
-                    icon: "rectangle.inset.filled.badge.record", color: .purple,
-                    title: "Screen Recording",
-                    subtitle: settings.useScreenshots
-                        ? "Required for the screenshot capture you've enabled."
-                        : "Only needed if you enable screenshots in General.",
-                    granted: permissions.screenRecording == .granted,
-                    tccService: "ScreenCapture"
-                ) {
-                    permissions.requestScreenRecording()
-                    permissions.openScreenRecordingSettings()
-                }
             } footer: {
                 Text(
-                    "Toggle ON in System Settings but SuperIsland still shows “not granted”? The grant went stale after a rebuild — click ⟲ to reset SuperIsland's permission entry and get a fresh prompt."
+                    "Toggle ON in System Settings but SuperIsland still shows \u{201c}not granted\u{201d}? The grant went stale after a rebuild \u{2014} click \u{27f2} to reset SuperIsland\u{2019}s permission entry and get a fresh prompt."
                 )
                 .font(.caption2)
                 .foregroundStyle(.secondary)
@@ -535,7 +495,7 @@ struct PermissionsSettingsPane: View {
             }
         }
         .formStyle(.grouped)
-        .frame(height: 360)
+        .frame(height: 300)
         .onAppear { permissions.refresh() }
     }
 

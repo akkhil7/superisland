@@ -9,17 +9,6 @@ import ServiceManagement
 final class Settings: ObservableObject {
     private let defaults = UserDefaults.standard
 
-    /// Capture window screenshots for richer AI context (needs Screen Recording).
-    /// Off by default — text-only mode works without that permission.
-    @Published var useScreenshots: Bool {
-        didSet { defaults.set(useScreenshots, forKey: Keys.useScreenshots) }
-    }
-
-    /// Persist encrypted local visual state for generic-app restore guidance.
-    @Published var rememberVisualState: Bool {
-        didSet { defaults.set(rememberVisualState, forKey: Keys.rememberVisualState) }
-    }
-
     /// Expand the notch island on hover (true) or only on click (false).
     @Published var islandExpandOnHover: Bool {
         didSet { defaults.set(islandExpandOnHover, forKey: Keys.islandExpandOnHover) }
@@ -73,8 +62,6 @@ final class Settings: ObservableObject {
 
     enum Keys {
         static let diagnosticsEnabled = "diagnosticsEnabled"
-        static let useScreenshots = "useScreenshots"
-        static let rememberVisualState = "rememberVisualState"
         static let islandExpandOnHover = "islandExpandOnHover"
         static let alertLevel = "alertLevel"
         static let codexIntegrationEnabled = "codexIntegrationEnabled"
@@ -88,8 +75,6 @@ final class Settings: ObservableObject {
     static let defaultModifiers: Int = 2304  // optionKey | cmdKey
 
     init() {
-        useScreenshots = defaults.object(forKey: Keys.useScreenshots) as? Bool ?? false
-        rememberVisualState = defaults.object(forKey: Keys.rememberVisualState) as? Bool ?? false
         islandExpandOnHover = defaults.object(forKey: Keys.islandExpandOnHover) as? Bool ?? true
         alertLevel =
             (defaults.object(forKey: Keys.alertLevel) as? Int)

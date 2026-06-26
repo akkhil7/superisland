@@ -18,7 +18,6 @@ final class AppController: ObservableObject {
     let chromeIntegration = ChromeIntegration()
     let claudeIntegration = ClaudeIntegration()
     let codexIntegration = CodexIntegration()
-    let restoreGuidance = RestoreGuidanceManager()
     let auth = AuthService()
 
     /// Set by the AppDelegate to show/hide the notch island as the user signs
@@ -775,12 +774,6 @@ final class AppController: ObservableObject {
             threadLabel
             ?? contextAnchor.map { String($0.prefix(60)) }
             ?? fallbackLabel
-        let restoreMemoryID: UUID? =
-            (settings.rememberVisualState
-                && IntegrationRouter.allowsVisualRestore(
-                    locator: locator,
-                    bundleID: front.bundleID
-                )) ? UUID() : nil
         // Terminal drops start idle (gray): their state is unknown until a
         // shell/agent event arrives, and they're never AI-classified. Other
         // apps start optimistic (working) and the monitor refines them.
@@ -789,17 +782,9 @@ final class AppController: ObservableObject {
         case .shell, .terminal, .iterm: initialStatus = .unknown
         default: initialStatus = .working
         }
-        let drop = Drop(
-            label: label, target: target, status: initialStatus,
-            restoreMemoryID: restoreMemoryID
-        )
+        let drop = Drop(label: label, target: target, status: initialStatus)
         store.add(drop)
         dlog(.app, "drop created: \(drop.label) [\(front.bundleID)]")
-        if let restoreMemoryID {
-            Task { @MainActor [restoreGuidance] in
-                await restoreGuidance.captureMemory(id: restoreMemoryID, target: target)
-            }
-        }
         suggestAILabelIfTerminal(for: drop)
         suggestClaudeStatusIfDesktop(for: drop)
         suggestClaudeStatusIfTerminal(for: drop)
@@ -934,8 +919,7 @@ final class AppController: ObservableObject {
             guard let token = await self.auth.validAccessToken() else { return }
             let snapshot = await CaptureService.snapshot(
                 pid: target.pid, windowID: target.windowID,
-                axWindow: WindowFinder.axWindow(pid: target.pid, windowID: target.windowID),
-                wantsScreenshot: false, allowScreenshot: false
+                axWindow: WindowFinder.axWindow(pid: target.pid, windowID: target.windowID)
             )
             guard snapshot.axText.count >= 30 else { return }
             let input = ClassificationInput(
@@ -973,10 +957,6 @@ final class AppController: ObservableObject {
     func refocus(_ drop: Drop) {
         guard auth.isSignedIn else { return }  // signed out → app is locked
         Refocuser.refocus(drop)
-        guard settings.rememberVisualState else { return }
-        Task { @MainActor [restoreGuidance] in
-            await restoreGuidance.suggestRestore(for: drop)
-        }
     }
 
     func dismiss(_ drop: Drop) { store.remove(id: drop.id) }

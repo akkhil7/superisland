@@ -85,7 +85,6 @@ final class SuperIslandMonitor: ObservableObject {
     private func classify(_ drop: Drop) {
         let id = drop.id
         let target = drop.target
-        let allowScreenshots = settings.useScreenshots
 
         inFlight.insert(id)
         Task { @MainActor in
@@ -103,18 +102,17 @@ final class SuperIslandMonitor: ObservableObject {
             let axWindow = WindowFinder.axWindow(pid: target.pid, windowID: target.windowID)
             let snapshot = await CaptureService.snapshot(
                 pid: target.pid, windowID: target.windowID,
-                axWindow: axWindow, wantsScreenshot: true,
-                allowScreenshot: allowScreenshots
+                axWindow: axWindow
             )
 
             let contentChanged = lastHashes[id].map { $0 != snapshot.contentHash } ?? false
             lastHashes[id] = snapshot.contentHash
             // Advance the backoff schedule only once we've actually *read* the
             // window. A window we couldn't read yet (Electron's AX tree still
-            // populating, no screenshot permission) must NOT earn an exponential
-            // backoff step — doing that before the readability gate is what
-            // pushed the first real verdict out to 30–80s. These retries are
-            // local (no API call), so re-checking at the base 5s tick is cheap.
+            // populating) must NOT earn an exponential backoff step — doing
+            // that before the readability gate pushed the first real verdict
+            // out to 30–80s. These retries are local (no API call), so
+            // re-checking at the base 5s tick is cheap.
             @MainActor func scheduleNextCheck() {
                 schedulers[id]?.advance(contentChanged: contentChanged, now: Date())
             }
@@ -153,16 +151,9 @@ final class SuperIslandMonitor: ObservableObject {
             // window" back. Say what would actually fix it instead. Retry at the
             // base cadence while the window populates (see unreadableFastRetries)
             // before letting backoff stretch the interval.
-            if snapshot.axText.count < 30, snapshot.screenshotPNG == nil {
-                let reason: String
-                if !allowScreenshots {
-                    reason = "Can't read this window — enable screenshots in Settings"
-                } else if !CGPreflightScreenCaptureAccess() {
-                    reason = "Can't read this window — grant Screen Recording"
-                } else {
-                    reason = "Window not readable yet — retrying"
-                }
-                store.updateStatus(id: id, to: .unknown, reason: reason)
+            if snapshot.axText.count < 30 {
+                store.updateStatus(
+                    id: id, to: .unknown, reason: "Window not readable yet — retrying")
                 let attempts = (unreadableCounts[id] ?? 0) + 1
                 unreadableCounts[id] = attempts
                 if attempts > unreadableFastRetries { scheduleNextCheck() }
@@ -174,8 +165,7 @@ final class SuperIslandMonitor: ObservableObject {
             let input = ClassificationInput(
                 appName: target.appName,
                 windowTitle: target.windowTitle,
-                axText: snapshot.axText,
-                screenshotPNG: snapshot.screenshotPNG
+                axText: snapshot.axText
             )
             do {
                 let verdict = try await ClaudeClassifier(

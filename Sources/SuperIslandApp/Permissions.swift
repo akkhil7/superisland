@@ -1,6 +1,5 @@
 import AppKit
 import ApplicationServices
-import CoreGraphics
 
 /// The OS permissions SuperIsland needs, and helpers to check/request them and to
 /// deep-link the user into the right System Settings pane.
@@ -9,11 +8,9 @@ final class PermissionsManager: ObservableObject {
     enum Status { case granted, denied, unknown }
 
     @Published var accessibility: Status = .unknown
-    @Published var screenRecording: Status = .unknown
 
     func refresh() {
         accessibility = AXIsProcessTrusted() ? .granted : .denied
-        screenRecording = CGPreflightScreenCaptureAccess() ? .granted : .denied
     }
 
     /// Prompt for Accessibility — only if not already trusted. When already
@@ -41,27 +38,13 @@ final class PermissionsManager: ObservableObject {
 
         switch service {
         case "Accessibility": requestAccessibility()
-        case "ScreenCapture": requestScreenRecording()
         default: break
         }
         refresh()
     }
 
-    /// Prompt for Screen Recording — only if not already granted. Calling the
-    /// request API while unauthorized is what surfaces the system dialog; we
-    /// skip it entirely when access is already present.
-    func requestScreenRecording() {
-        guard !CGPreflightScreenCaptureAccess() else { refresh(); return }
-        _ = CGRequestScreenCaptureAccess()
-        refresh()
-    }
-
     func openAccessibilitySettings() {
         open("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
-    }
-
-    func openScreenRecordingSettings() {
-        open("x-apple.systempreferences:com.apple.preference.security?Privacy_ScreenCapture")
     }
 
     func openAutomationSettings() {
@@ -73,6 +56,6 @@ final class PermissionsManager: ObservableObject {
     }
 
     var allGranted: Bool {
-        accessibility == .granted && screenRecording == .granted
+        accessibility == .granted
     }
 }

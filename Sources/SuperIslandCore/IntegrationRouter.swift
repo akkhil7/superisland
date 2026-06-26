@@ -6,7 +6,7 @@ public enum IntegrationStrength: String, Codable, Sendable {
     case generic
 }
 
-/// Decides which restore/status layer owns a drop.
+/// Decides which status layer owns a drop.
 public enum IntegrationRouter {
     public static func strength(locator: Locator, bundleID: String) -> IntegrationStrength {
         switch locator {
@@ -22,10 +22,6 @@ public enum IntegrationRouter {
             if EditorApp.isEditor(bundleID: bundleID) { return .appSpecific }
             return .generic
         }
-    }
-
-    public static func allowsVisualRestore(locator: Locator, bundleID: String) -> Bool {
-        strength(locator: locator, bundleID: bundleID) == .generic
     }
 
     private static func isChromeBundle(_ bundleID: String) -> Bool {

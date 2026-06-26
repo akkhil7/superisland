@@ -1,19 +1,16 @@
 import Foundation
 
-/// Input to the cloud classifier: the window's text and (optionally) a
-/// screenshot, plus light metadata to ground the model.
+/// Input to the cloud classifier: the window's text plus light metadata to
+/// ground the model.
 public struct ClassificationInput: Sendable {
     public var appName: String
     public var windowTitle: String
     public var axText: String
-    /// Downscaled PNG screenshot, when text alone is insufficient.
-    public var screenshotPNG: Data?
 
-    public init(appName: String, windowTitle: String, axText: String, screenshotPNG: Data? = nil) {
+    public init(appName: String, windowTitle: String, axText: String) {
         self.appName = appName
         self.windowTitle = windowTitle
         self.axText = axText
-        self.screenshotPNG = screenshotPNG
     }
 }
 
@@ -65,11 +62,9 @@ public enum ClassifierProtocolBuilder {
         Only classify "needsAttention" if you can see actual task output followed by a \
         question or input request. An idle shell after output means "done".
 
-        If a screenshot is provided, read the task state from the screenshot — it is \
-        the primary evidence when the window text is thin or missing. For AI-assistant \
-        apps (Claude, ChatGPT, Cursor, …): a streaming/typing response or a visible \
-        stop button means "working"; a completed response means "done"; a permission \
-        or confirmation dialog means "needsAttention".
+        For AI-assistant apps (Claude, ChatGPT, Cursor, …): a streaming/typing \
+        response or a visible stop button means "working"; a completed response means \
+        "done"; a permission or confirmation dialog means "needsAttention".
 
         For AI coding editors (Cursor, VS Code with an agent/chat panel): judge by the \
         agent panel, not the code. An agent generating, running tools, or applying edits \
@@ -141,25 +136,11 @@ public enum ClassifierProtocolBuilder {
         ]
     }
 
-    /// Build the JSON request body. `screenshotBase64` is the base64 of a PNG, if any.
+    /// Build the JSON request body (text-only).
     public static func requestBody(
         for input: ClassificationInput,
-        model: String,
-        screenshotBase64: String?
+        model: String
     ) -> [String: Any] {
-        var content: [[String: Any]] = []
-
-        if let b64 = screenshotBase64 {
-            content.append([
-                "type": "image",
-                "source": [
-                    "type": "base64",
-                    "media_type": "image/png",
-                    "data": b64,
-                ],
-            ])
-        }
-
         let header = "App: \(input.appName)\nWindow: \(input.windowTitle)"
         let text = """
             \(header)
@@ -167,7 +148,7 @@ public enum ClassifierProtocolBuilder {
             Window text (may be truncated):
             \(input.axText)
             """
-        content.append(["type": "text", "text": text])
+        let content: [[String: Any]] = [["type": "text", "text": text]]
 
         return [
             "model": model,
@@ -258,9 +239,7 @@ public struct ClaudeClassifier: Sendable {
     }
 
     public func classify(_ input: ClassificationInput) async throws -> Classification {
-        let b64 = input.screenshotPNG?.base64EncodedString()
-        let body = ClassifierProtocolBuilder.requestBody(
-            for: input, model: model, screenshotBase64: b64)
+        let body = ClassifierProtocolBuilder.requestBody(for: input, model: model)
         return try await send(body)
     }
 

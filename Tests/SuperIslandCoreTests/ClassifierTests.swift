@@ -4,33 +4,15 @@ import XCTest
 final class ClassifierTests: XCTestCase {
     func testRequestBodyIncludesModelAndText() {
         let input = ClassificationInput(
-            appName: "Terminal", windowTitle: "build", axText: "make: done", screenshotPNG: nil
+            appName: "Terminal", windowTitle: "build", axText: "make: done"
         )
-        let body = ClassifierProtocolBuilder.requestBody(
-            for: input, model: "claude-opus-4-8", screenshotBase64: nil
-        )
+        let body = ClassifierProtocolBuilder.requestBody(for: input, model: "claude-opus-4-8")
         XCTAssertEqual(body["model"] as? String, "claude-opus-4-8")
         let messages = body["messages"] as! [[String: Any]]
         let content = messages[0]["content"] as! [[String: Any]]
-        // No screenshot → single text block.
+        // Text-only → single text block.
         XCTAssertEqual(content.count, 1)
         XCTAssertEqual(content[0]["type"] as? String, "text")
-    }
-
-    func testRequestBodyIncludesImageWhenProvided() {
-        let input = ClassificationInput(
-            appName: "Chrome", windowTitle: "tab", axText: "", screenshotPNG: Data([1, 2, 3])
-        )
-        let body = ClassifierProtocolBuilder.requestBody(
-            for: input, model: "claude-opus-4-8", screenshotBase64: "AQID"
-        )
-        let messages = body["messages"] as! [[String: Any]]
-        let content = messages[0]["content"] as! [[String: Any]]
-        XCTAssertEqual(content.count, 2)
-        XCTAssertEqual(content[0]["type"] as? String, "image")
-        let source = content[0]["source"] as! [String: Any]
-        XCTAssertEqual(source["media_type"] as? String, "image/png")
-        XCTAssertEqual(source["data"] as? String, "AQID")
     }
 
     func testTurnEndRequestBodyUsesDedicatedPromptAndMessage() {

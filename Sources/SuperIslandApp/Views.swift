@@ -589,11 +589,9 @@ struct MenuBarContent: View {
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var auth: AuthService
 
-    /// Accessibility is always required; Screen Recording only when the user
-    /// opted into screenshots.
+    /// Accessibility is always required.
     private var permissionsBlocked: Bool {
         permissions.accessibility != .granted
-            || (settings.useScreenshots && permissions.screenRecording != .granted)
     }
 
     var body: some View {

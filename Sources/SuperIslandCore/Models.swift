@@ -132,9 +132,6 @@ public struct Drop: Codable, Identifiable, Equatable, Sendable {
     public var status: DropStatus
     public var lastChecked: Date?
     public var history: [StatusEvent]
-    /// Optional encrypted visual restore memory id. Only populated for generic
-    /// app drops that do not have a stronger integration.
-    public var restoreMemoryID: UUID?
 
     public init(
         id: UUID = UUID(),
@@ -143,8 +140,7 @@ public struct Drop: Codable, Identifiable, Equatable, Sendable {
         target: WindowTarget,
         status: DropStatus = .working,
         lastChecked: Date? = nil,
-        history: [StatusEvent] = [],
-        restoreMemoryID: UUID? = nil
+        history: [StatusEvent] = []
     ) {
         self.id = id
         self.createdAt = createdAt
@@ -153,6 +149,5 @@ public struct Drop: Codable, Identifiable, Equatable, Sendable {
         self.status = status
         self.lastChecked = lastChecked
         self.history = history
-        self.restoreMemoryID = restoreMemoryID
     }
 }

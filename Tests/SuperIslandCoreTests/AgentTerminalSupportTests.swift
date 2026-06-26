@@ -161,17 +161,19 @@ final class AgentTerminalSupportTests: XCTestCase {
             IntegrationRouter.strength(locator: locator, bundleID: EditorApp.vsCode),
             .appSpecific
         )
-        XCTAssertFalse(
-            IntegrationRouter.allowsVisualRestore(locator: locator, bundleID: EditorApp.cursor)
+        XCTAssertEqual(
+            IntegrationRouter.strength(locator: locator, bundleID: EditorApp.cursor),
+            .appSpecific
         )
     }
 
-    func testGenericLocatorInEditorBundleSkipsVisualRestore() {
-        XCTAssertFalse(
-            IntegrationRouter.allowsVisualRestore(
+    func testGenericLocatorInEditorBundleIsAppSpecific() {
+        XCTAssertEqual(
+            IntegrationRouter.strength(
                 locator: .generic(axWindowTitle: "x", axWindowIndex: nil),
                 bundleID: EditorApp.cursor
-            )
+            ),
+            .appSpecific
         )
     }
 
