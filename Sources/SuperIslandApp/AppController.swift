@@ -27,10 +27,11 @@ final class AppController: ObservableObject {
     /// Drops that have received at least one Claude hook event this run —
     /// hooks are ground truth, so the AI monitor leaves these alone.
     private var hookManagedDrops = Set<UUID>()
-    /// Hash of the last conversation tail we classified per chrome drop, so the
-    /// turn-end classifier fires once per distinct settled conversation (not on
-    /// every repeated event).
-    private var chromeClassifiedHash: [UUID: Int] = [:]
+    /// Chrome drops we've classified at rest at least once (so a bare tab focus
+    /// never re-classifies) and drops with a working turn in flight (so the next
+    /// settle re-classifies). Together: classify once per turn, never on focus.
+    private var chromeSeen = Set<UUID>()
+    private var chromeTurnPending = Set<UUID>()
 
     /// Per-drop counter bumped on every Claude hook event, used to detect a
     /// `PreToolUse` that no later event supersedes (a tool blocked on your
@@ -179,47 +180,51 @@ final class AppController: ObservableObject {
             return
         }
         dlog(.proxy, "chrome tab_state \(status.rawValue) → drop \(drop.id)")
-        store.updateStatus(id: drop.id, to: status, reason: Self.chromeReason(status))
 
-        // Resolve the resting state (done vs needsAttention) whenever the tab is
-        // NOT actively working and its conversation text has changed since we last
-        // classified it. This catches the working→done turn-end AND a tab dropped
-        // onto an already-settled conversation (which the bridge reports as
-        // `unknown`). The extension's DOM text is the only readable source —
-        // Chrome's AX tree doesn't expose the conversation. Deduped by text hash
-        // so repeated identical events don't re-classify.
-        if status != .working, let text = event.domSummary?.text, text.count >= 40 {
-            let hash = text.hashValue
-            if chromeClassifiedHash[drop.id] != hash {
-                chromeClassifiedHash[drop.id] = hash
-                classifyChromeTurnEnd(dropID: drop.id, conversationTail: text)
-            }
+        // The bridge owns the LIVE `working` signal. The resting verdict (done vs
+        // needsAttention) is owned by the turn-end classifier — so we never write
+        // the bridge's settled status onto the drop, or a bare tab-focus event
+        // (which re-emits `unknown`) would clobber a needsAttention back to "done".
+        if status == .working {
+            store.updateStatus(id: drop.id, to: .working, reason: Self.chromeReason(.working))
+            chromeTurnPending.insert(drop.id)
+            return
+        }
+
+        // Settled (done / unknown). Classify the conversation exactly ONCE per
+        // turn: when a working turn just ended, or the first time we see this drop
+        // settled (a tab dropped onto an already-finished conversation). A bare
+        // re-focus of an already-classified drop does nothing. The extension's DOM
+        // text is the only readable source — Chrome's AX tree can't see the page.
+        guard let text = event.domSummary?.text, text.count >= 40 else { return }
+        let shouldClassify = !chromeSeen.contains(drop.id) || chromeTurnPending.contains(drop.id)
+        if shouldClassify {
+            chromeSeen.insert(drop.id)
+            chromeTurnPending.remove(drop.id)
+            classifyChromeTurnEnd(dropID: drop.id, conversationTail: text)
         }
     }
 
     /// Classify a settled chrome turn's conversation tail with the focused
-    /// turn-end prompt and UPGRADE the drop to needsAttention if the assistant is
-    /// waiting on the user. Only upgrades a still-`done` drop, so a new turn that
-    /// started while the call was in flight (bridge set it back to working) is
-    /// never clobbered — that is the self-healing path.
+    /// turn-end prompt and set the drop's resting verdict (done / needsAttention).
+    /// Never sets `working` (the bridge owns that) and never clobbers a turn that
+    /// started while the call was in flight. Falls back to `done` so a failed call
+    /// can't leave the drop hanging.
     private func classifyChromeTurnEnd(dropID: UUID, conversationTail: String) {
         Task { @MainActor [weak self] in
             guard let self, let token = await self.auth.validAccessToken() else { return }
-            guard
-                let verdict = try? await ClaudeClassifier(
-                    auth: .proxy(url: BackendConfig.classifyURL, bearer: token),
-                    model: ClassifierProtocolBuilder.defaultModel
-                ).classifyTurnEndMessage(conversationTail)
-            else { return }
-            dlog(.proxy, "chrome turn-end → \(verdict.status.rawValue)")
-            // The bridge owns the live `working` signal — never let the classifier
-            // set working or clobber a turn that started while the call was in
-            // flight. Otherwise apply the resting verdict (done / needsAttention),
-            // which also resolves a settled drop the bridge left at `unknown`.
-            guard verdict.status != .working,
-                self.store.drop(id: dropID)?.status != .working
-            else { return }
-            self.store.updateStatus(id: dropID, to: verdict.status, reason: verdict.reason)
+            let verdict = try? await ClaudeClassifier(
+                auth: .proxy(url: BackendConfig.classifyURL, bearer: token),
+                model: ClassifierProtocolBuilder.defaultModel
+            ).classifyTurnEndMessage(conversationTail)
+            // If a NEW turn started while we were waiting (a fresh `working` event
+            // re-armed the pending flag), it owns the drop now — don't overwrite.
+            // The drop being `working` from the turn we're resolving is expected.
+            guard !self.chromeTurnPending.contains(dropID) else { return }
+            let status: DropStatus = (verdict?.status == .needsAttention) ? .needsAttention : .done
+            let reason = verdict?.reason ?? "Response ready"
+            dlog(.proxy, "chrome turn-end → \(status.rawValue)")
+            self.store.updateStatus(id: dropID, to: status, reason: reason)
         }
     }
 
