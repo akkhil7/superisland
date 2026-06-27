@@ -228,20 +228,26 @@ final class AppController: ObservableObject {
         }
     }
 
-    /// The `.chrome` drop an incoming tab_state belongs to. Primary key is the
-    /// extension `tabID` — reliable only when the drop's `windowID != nil`, which
-    /// marks an extension-id-space tabID (see `Adapters`). Falls back to exact URL
-    /// for drops captured while the bridge was down (their tabID is an AppleScript
-    /// id that never equals an extension id).
     private func chromeDrop(matching tab: ChromeTabState) -> Drop? {
-        if let hit = store.drops.first(where: { drop in
-            guard case let .chrome(windowID, _, _, tabID, _, _, _, _) = drop.target.locator
-            else { return false }
-            return windowID != nil && tabID != nil && tabID == tab.tabID
-        }) {
+        chromeDrop(tabID: tab.tabID, url: tab.url)
+    }
+
+    /// The `.chrome` drop for a tab. Primary key is the extension `tabID` — matched
+    /// only against drops whose `windowID != nil`, which marks an extension-id-space
+    /// tabID (see `Adapters`). Falls back to exact URL for drops captured while the
+    /// bridge was down (their tabID is an AppleScript id that never equals an
+    /// extension id). Used both to route bridge events and to dedup at drop time.
+    private func chromeDrop(tabID: Int?, url: String?) -> Drop? {
+        if let tabID,
+            let hit = store.drops.first(where: { drop in
+                guard case let .chrome(windowID, _, _, t, _, _, _, _) = drop.target.locator
+                else { return false }
+                return windowID != nil && t == tabID
+            })
+        {
             return hit
         }
-        guard let url = tab.url, !url.isEmpty else { return nil }
+        guard let url, !url.isEmpty else { return nil }
         return store.drops.first { drop in
             guard case let .chrome(_, _, _, _, dropURL, _, _, _) = drop.target.locator
             else { return false }
@@ -889,6 +895,17 @@ final class AppController: ObservableObject {
         // a duplicate that would race the original for the same status updates.
         if let url = contentURL, store.drop(forContentURL: url) != nil {
             showToast("Already tracking this session")
+            NSSound.beep()
+            return false
+        }
+        // Chrome drops carry no contentURL, so the guard above can't see them —
+        // dedup on the tab identity (extension tabID when present, else exact URL).
+        // Re-dropping the same tab otherwise piles up duplicates that race for the
+        // same bridge updates. Only the new drop's extension-spaced tabID counts.
+        if case let .chrome(windowID, _, _, tabID, url, _, _, _) = locator,
+            chromeDrop(tabID: windowID != nil ? tabID : nil, url: url) != nil
+        {
+            showToast("Already tracking this tab")
             NSSound.beep()
             return false
         }
