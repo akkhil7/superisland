@@ -27,6 +27,11 @@ final class AppController: ObservableObject {
     /// Drops that have received at least one Claude hook event this run —
     /// hooks are ground truth, so the AI monitor leaves these alone.
     private var hookManagedDrops = Set<UUID>()
+    /// Chrome drops we've classified at rest at least once (so a bare tab focus
+    /// never re-classifies) and drops with a working turn in flight (so the next
+    /// settle re-classifies). Together: classify once per turn, never on focus.
+    private var chromeSeen = Set<UUID>()
+    private var chromeTurnPending = Set<UUID>()
 
     /// Per-drop counter bumped on every Claude hook event, used to detect a
     /// `PreToolUse` that no later event supersedes (a tool blocked on your
@@ -136,15 +141,127 @@ final class AppController: ObservableObject {
             self?.handleCodexHookEvent(event)
         }
         shellServer.start()
+        chromeBridgeServer.onTabState = { [weak self] event in
+            self?.handleChromeTabEvent(event)
+        }
         monitor.isExternallyManaged = { [weak self] drop in
             guard let self else { return false }
             if self.hookManagedDrops.contains(drop.id) { return true }
+            // The AI window classifier is BLIND to Chrome — its AX tree exposes
+            // only the tab strip / window chrome, never the page — so it must
+            // NEVER classify a chrome drop, not even when the bridge briefly goes
+            // stale on an idle settled tab (otherwise it overwrites a correct
+            // needsAttention with a blind "done"). Chrome status is owned entirely
+            // by the bridge + turn-end classifier (see handleChromeTabEvent).
+            if case .chrome = drop.target.locator {
+                return true
+            }
             // Codex drops are rollout-driven; AI polling would read whatever
             // thread happens to be visible onto them.
             return self.settings.codexIntegrationEnabled
                 && drop.target.contentURL?.hasPrefix(CodexIntegration.sessionURLPrefix) == true
         }
         startCodexWatcher()
+    }
+
+    // MARK: - Chrome bridge (extension is ground truth for web-AI drops)
+
+    /// A `tab_state` event carries the extension's network-derived status for one
+    /// Chrome tab. Route it to the matching `.chrome` drop; the AI monitor leaves
+    /// that drop alone while the bridge is live (see `isExternallyManaged`). The
+    /// host allowlist is already enforced by `ChromeBridgeServer` before this runs.
+    private func handleChromeTabEvent(_ event: ChromeBridgeExtensionEvent) {
+        guard auth.isSignedIn else { return }  // signed out → app is locked
+        guard let tab = event.tab,
+            let status = tab.status ?? event.domSummary?.taskState
+        else { return }
+        guard let drop = chromeDrop(matching: tab) else {
+            dlog(.proxy, "chrome tab_state \(status.rawValue) — no drop for \(tab.url ?? "?")")
+            return
+        }
+
+        // The bridge owns the LIVE `working` signal. The resting verdict (done vs
+        // needsAttention) is owned by the turn-end classifier — so we never write
+        // the bridge's settled status onto the drop, or a bare tab-focus event
+        // (which re-emits `unknown`) would clobber a needsAttention back to "done".
+        if status == .working {
+            store.updateStatus(id: drop.id, to: .working, reason: Self.chromeReason(.working))
+            chromeTurnPending.insert(drop.id)
+            return
+        }
+
+        // Settled (done / unknown). Classify the conversation exactly ONCE per
+        // turn: when a working turn just ended, or the first time we see this drop
+        // settled (a tab dropped onto an already-finished conversation). A bare
+        // re-focus of an already-classified drop does nothing. The extension's DOM
+        // text is the only readable source — Chrome's AX tree can't see the page.
+        guard let text = event.domSummary?.text, text.count >= 40 else { return }
+        let shouldClassify = !chromeSeen.contains(drop.id) || chromeTurnPending.contains(drop.id)
+        if shouldClassify {
+            chromeSeen.insert(drop.id)
+            chromeTurnPending.remove(drop.id)
+            classifyChromeTurnEnd(dropID: drop.id, conversationTail: text)
+        }
+    }
+
+    /// Classify a settled chrome turn's conversation tail with the focused
+    /// turn-end prompt and set the drop's resting verdict (done / needsAttention).
+    /// Never sets `working` (the bridge owns that) and never clobbers a turn that
+    /// started while the call was in flight. Falls back to `done` so a failed call
+    /// can't leave the drop hanging.
+    private func classifyChromeTurnEnd(dropID: UUID, conversationTail: String) {
+        Task { @MainActor [weak self] in
+            guard let self, let token = await self.auth.validAccessToken() else { return }
+            let verdict = try? await ClaudeClassifier(
+                auth: .proxy(url: BackendConfig.classifyURL, bearer: token),
+                model: ClassifierProtocolBuilder.defaultModel
+            ).classifyTurnEndMessage(conversationTail)
+            // If a NEW turn started while we were waiting (a fresh `working` event
+            // re-armed the pending flag), it owns the drop now — don't overwrite.
+            // The drop being `working` from the turn we're resolving is expected.
+            guard !self.chromeTurnPending.contains(dropID) else { return }
+            let status: DropStatus = (verdict?.status == .needsAttention) ? .needsAttention : .done
+            let reason = verdict?.reason ?? "Response ready"
+            dlog(.proxy, "chrome turn-end → \(status.rawValue)")
+            self.store.updateStatus(id: dropID, to: status, reason: reason)
+        }
+    }
+
+    private func chromeDrop(matching tab: ChromeTabState) -> Drop? {
+        chromeDrop(tabID: tab.tabID, url: tab.url)
+    }
+
+    /// The `.chrome` drop for a tab. Primary key is the extension `tabID` — matched
+    /// only against drops whose `windowID != nil`, which marks an extension-id-space
+    /// tabID (see `Adapters`). Falls back to exact URL for drops captured while the
+    /// bridge was down (their tabID is an AppleScript id that never equals an
+    /// extension id). Used both to route bridge events and to dedup at drop time.
+    private func chromeDrop(tabID: Int?, url: String?) -> Drop? {
+        if let tabID,
+            let hit = store.drops.first(where: { drop in
+                guard case let .chrome(windowID, _, _, t, _, _, _, _) = drop.target.locator
+                else { return false }
+                return windowID != nil && t == tabID
+            })
+        {
+            return hit
+        }
+        guard let url, !url.isEmpty else { return nil }
+        return store.drops.first { drop in
+            guard case let .chrome(_, _, _, _, dropURL, _, _, _) = drop.target.locator
+            else { return false }
+            return dropURL == url
+        }
+    }
+
+    private static func chromeReason(_ status: DropStatus) -> String {
+        switch status {
+        case .working: return "Generating…"
+        case .done: return "Response ready"
+        case .needsAttention: return "Needs your input"
+        case .stale: return "Tab closed"
+        case .unknown: return "Idle"
+        }
     }
 
     // MARK: - Codex (rollout watching; /codex endpoint serves CLI hooks only)
@@ -777,6 +894,17 @@ final class AppController: ObservableObject {
         // a duplicate that would race the original for the same status updates.
         if let url = contentURL, store.drop(forContentURL: url) != nil {
             showToast("Already tracking this session")
+            NSSound.beep()
+            return false
+        }
+        // Chrome drops carry no contentURL, so the guard above can't see them —
+        // dedup on the tab identity (extension tabID when present, else exact URL).
+        // Re-dropping the same tab otherwise piles up duplicates that race for the
+        // same bridge updates. Only the new drop's extension-spaced tabID counts.
+        if case let .chrome(windowID, _, _, tabID, url, _, _, _) = locator,
+            chromeDrop(tabID: windowID != nil ? tabID : nil, url: url) != nil
+        {
+            showToast("Already tracking this tab")
             NSSound.beep()
             return false
         }

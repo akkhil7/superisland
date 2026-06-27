@@ -10,15 +10,38 @@
     "128": "icons/icon128.png"
   },
   "permissions": [
-    "activeTab",
     "nativeMessaging",
     "scripting",
     "tabs",
     "webNavigation",
+    "webRequest",
     "windows"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "https://lovable.dev/*",
+    "https://gemini.google.com/*",
+    "https://chatgpt.com/*",
+    "https://chat.openai.com/*",
+    "https://claude.ai/*",
+    "https://app.emergent.sh/*",
+    "https://emergent.sh/*",
+    "https://v0.app/*",
+    "https://v0.dev/*",
+    "https://grok.com/*",
+    "https://chat.mistral.ai/*",
+    "https://chat.deepseek.com/*",
+    "https://www.perplexity.ai/*",
+    "https://perplexity.ai/*",
+    "https://bolt.new/*",
+    "https://api.lovable.dev/*",
+    "https://lovable-api.com/*",
+    "https://api.emergent.sh/*",
+    "https://auth.emergent.sh/*",
+    "https://ap.emergent.sh/*",
+    "https://files.emergent.sh/*",
+    "https://mcp.emergent.sh/*",
+    "https://assets.emergent.sh/*",
+    "https://job-connect.api.emergent.sh/*"
   ],
   "background": {
     "service_worker": "background.js",
@@ -27,12 +50,50 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "https://lovable.dev/*",
+        "https://gemini.google.com/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://app.emergent.sh/*",
+        "https://emergent.sh/*",
+        "https://v0.app/*",
+        "https://v0.dev/*",
+        "https://grok.com/*",
+        "https://chat.mistral.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*",
+        "https://bolt.new/*"
       ],
       "js": [
         "content.js"
       ],
       "run_at": "document_idle"
+    },
+    {
+      "matches": [
+        "https://lovable.dev/*",
+        "https://gemini.google.com/*",
+        "https://chatgpt.com/*",
+        "https://chat.openai.com/*",
+        "https://claude.ai/*",
+        "https://app.emergent.sh/*",
+        "https://emergent.sh/*",
+        "https://v0.app/*",
+        "https://v0.dev/*",
+        "https://grok.com/*",
+        "https://chat.mistral.ai/*",
+        "https://chat.deepseek.com/*",
+        "https://www.perplexity.ai/*",
+        "https://perplexity.ai/*",
+        "https://bolt.new/*"
+      ],
+      "js": [
+        "visibility-keepalive.js"
+      ],
+      "run_at": "document_start",
+      "world": "MAIN"
     }
   ]
 }

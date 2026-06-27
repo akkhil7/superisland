@@ -147,6 +147,14 @@ public enum ChromeBridgeEventType: String, Codable, Sendable {
     case commandPoll = "command_poll"
 }
 
+/// Where a tab's `status` came from: the network detector (authoritative —
+/// derived from chrome.webRequest generation lifecycles) or the content-script
+/// DOM signal (best-effort fallback when no provider request was observed).
+public enum ChromeStatusSource: String, Codable, Sendable {
+    case network
+    case dom
+}
+
 public struct ChromeTabState: Codable, Equatable, Sendable {
     public var tabID: Int
     public var windowID: Int
@@ -155,6 +163,7 @@ public struct ChromeTabState: Codable, Equatable, Sendable {
     public var title: String?
     public var documentID: String?
     public var status: DropStatus?
+    public var statusSource: ChromeStatusSource? = nil
 
     enum CodingKeys: String, CodingKey {
         case tabID = "tabId"
@@ -162,6 +171,7 @@ public struct ChromeTabState: Codable, Equatable, Sendable {
         case index, url, title
         case documentID = "documentId"
         case status
+        case statusSource
     }
 }
 

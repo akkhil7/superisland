@@ -15,7 +15,7 @@ OUT="$ROOT/.build/SuperIslandChromeBridge.zip"
 STAGE="$(mktemp -d)"
 trap 'rm -rf "$STAGE"' EXIT
 
-cp -R "$SRC/background.js" "$SRC/content.js" "$SRC/icons" "$STAGE/"
+cp -R "$SRC/background.js" "$SRC/providers.js" "$SRC/content.js" "$SRC/visibility-keepalive.js" "$SRC/icons" "$STAGE/"
 python3 - "$SRC/manifest.json" "$STAGE/manifest.json" <<'PY'
 import json, sys
 manifest = json.load(open(sys.argv[1]))
@@ -25,7 +25,7 @@ PY
 
 mkdir -p "$ROOT/.build"
 rm -f "$OUT"
-( cd "$STAGE" && zip -r -X "$OUT" manifest.json background.js content.js icons -x "*.DS_Store" >/dev/null )
+( cd "$STAGE" && zip -r -X "$OUT" manifest.json background.js providers.js content.js visibility-keepalive.js icons -x "*.DS_Store" >/dev/null )
 
 echo "Packaged → $OUT  (key field stripped for the Web Store)"
 unzip -l "$OUT"

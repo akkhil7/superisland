@@ -1,4 +1,5 @@
 import Foundation
+import SuperIslandCore
 
 let bridgeURL = URL(string: "http://127.0.0.1:2931/chrome")!
 
@@ -37,6 +38,21 @@ func forwardToSuperIsland(_ body: Data) -> Data {
     return output ?? Data(#"{"ok":false,"error":"SuperIsland app is not reachable"}"#.utf8)
 }
 
+/// True when `body` is a tab event for a non-allowlisted host. `command_poll`
+/// and tool-call traffic carry no foreign URL and pass through untouched. This is
+/// a cheap early drop that saves a localhost round-trip; the app's bridge server
+/// re-checks and is the authoritative boundary.
+func hasDisallowedHost(_ body: Data) -> Bool {
+    guard let obj = try? JSONSerialization.jsonObject(with: body) as? [String: Any],
+        let tab = obj["tab"] as? [String: Any]
+    else { return false }  // not a tab event we inspect
+    return !ChromeHostAllowlist.isAllowed(urlString: tab["url"] as? String)
+}
+
 while let message = readNativeMessage() {
+    if hasDisallowedHost(message) {
+        writeNativeMessage(Data(#"{"ok":false,"error":"rejected: host not allowlisted"}"#.utf8))
+        continue
+    }
     writeNativeMessage(forwardToSuperIsland(message))
 }
