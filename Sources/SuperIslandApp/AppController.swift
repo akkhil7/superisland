@@ -27,9 +27,10 @@ final class AppController: ObservableObject {
     /// Drops that have received at least one Claude hook event this run —
     /// hooks are ground truth, so the AI monitor leaves these alone.
     private var hookManagedDrops = Set<UUID>()
-    /// Last bridge-reported status per chrome drop, to fire the turn-end
-    /// classifier exactly once on the working→done edge (not every done event).
-    private var chromeLastStatus: [UUID: DropStatus] = [:]
+    /// Hash of the last conversation tail we classified per chrome drop, so the
+    /// turn-end classifier fires once per distinct settled conversation (not on
+    /// every repeated event).
+    private var chromeClassifiedHash: [UUID: Int] = [:]
 
     /// Per-drop counter bumped on every Claude hook event, used to detect a
     /// `PreToolUse` that no later event supersedes (a tool blocked on your
@@ -177,19 +178,22 @@ final class AppController: ObservableObject {
             dlog(.proxy, "chrome tab_state \(status.rawValue) — no drop for \(tab.url ?? "?")")
             return
         }
-        let prev = chromeLastStatus[drop.id]
-        chromeLastStatus[drop.id] = status
         dlog(.proxy, "chrome tab_state \(status.rawValue) → drop \(drop.id)")
         store.updateStatus(id: drop.id, to: status, reason: Self.chromeReason(status))
 
-        // Turn-end edge: ask the AI whether the assistant's final message is
-        // waiting on the user (a question / request). The extension's DOM text is
-        // the only readable source — Chrome's AX tree doesn't expose the
-        // conversation — so classify that, not a window snapshot.
-        if status == .done, prev != .done,
-            let text = event.domSummary?.text, text.count >= 40
-        {
-            classifyChromeTurnEnd(dropID: drop.id, conversationTail: text)
+        // Resolve the resting state (done vs needsAttention) whenever the tab is
+        // NOT actively working and its conversation text has changed since we last
+        // classified it. This catches the working→done turn-end AND a tab dropped
+        // onto an already-settled conversation (which the bridge reports as
+        // `unknown`). The extension's DOM text is the only readable source —
+        // Chrome's AX tree doesn't expose the conversation. Deduped by text hash
+        // so repeated identical events don't re-classify.
+        if status != .working, let text = event.domSummary?.text, text.count >= 40 {
+            let hash = text.hashValue
+            if chromeClassifiedHash[drop.id] != hash {
+                chromeClassifiedHash[drop.id] = hash
+                classifyChromeTurnEnd(dropID: drop.id, conversationTail: text)
+            }
         }
     }
 
@@ -208,10 +212,14 @@ final class AppController: ObservableObject {
                 ).classifyTurnEndMessage(conversationTail)
             else { return }
             dlog(.proxy, "chrome turn-end → \(verdict.status.rawValue)")
-            guard verdict.status == .needsAttention,
-                self.store.drop(id: dropID)?.status == .done
+            // The bridge owns the live `working` signal — never let the classifier
+            // set working or clobber a turn that started while the call was in
+            // flight. Otherwise apply the resting verdict (done / needsAttention),
+            // which also resolves a settled drop the bridge left at `unknown`.
+            guard verdict.status != .working,
+                self.store.drop(id: dropID)?.status != .working
             else { return }
-            self.store.updateStatus(id: dropID, to: .needsAttention, reason: verdict.reason)
+            self.store.updateStatus(id: dropID, to: verdict.status, reason: verdict.reason)
         }
     }
 
