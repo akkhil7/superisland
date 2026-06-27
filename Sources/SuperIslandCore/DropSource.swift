@@ -44,9 +44,11 @@ public struct DropSource: Equatable, Sendable {
             return DropSource(name: "Claude Desktop", icon: "sparkles")
         case CodexDeepLink.bundleID:
             return DropSource(name: "Codex", icon: "chevron.left.forwardslash.chevron.right")
+        case CursorDeepLink.bundleID:
+            return DropSource(name: "Cursor", icon: "cursorarrow.rays")
         case SupportedApps.chrome, SupportedApps.chromeCanary, SupportedApps.brave:
             return DropSource(name: SupportedApps.displayName(bundleID: bundleID), icon: "globe")
-        case EditorApp.cursor, EditorApp.vsCode:
+        case EditorApp.vsCode:
             return DropSource(
                 name: SupportedApps.displayName(bundleID: bundleID), icon: "curlybraces")
         default:

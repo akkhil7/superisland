@@ -857,6 +857,9 @@ final class AppController: ObservableObject {
             installed = claudeIntegration.isInstalled
         case .codex:
             installed = settings.codexIntegrationEnabled
+        case .cursor:
+            // CursorIntegration live-check is wired in a later task; allow for now.
+            installed = true
         }
         return installed ? nil : required
     }

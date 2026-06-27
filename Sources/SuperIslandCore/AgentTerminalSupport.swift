@@ -198,16 +198,16 @@ public enum ProcessTreeTTY {
     }
 }
 
-// MARK: - Editor apps (VS Code / Cursor)
+// MARK: - Editor apps (VS Code)
 
 public enum EditorApp {
-    /// VS Code family + Cursor.
+    /// VS Code family. (Cursor was here until it became an agent integration —
+    /// see CursorDeepLink / CursorIntegration.)
     public static let vsCode = "com.microsoft.VSCode"
     public static let vsCodeInsiders = "com.microsoft.VSCodeInsiders"
     public static let vsCodium = "com.vscodium"
-    public static let cursor = "com.todesktop.230313mzl4w4u92"
 
-    public static let bundleIDs: Set<String> = [vsCode, vsCodeInsiders, vsCodium, cursor]
+    public static let bundleIDs: Set<String> = [vsCode, vsCodeInsiders, vsCodium]
 
     public static func isEditor(bundleID: String) -> Bool {
         bundleIDs.contains(bundleID)
@@ -215,7 +215,6 @@ public enum EditorApp {
 
     public static func displayName(bundleID: String) -> String {
         switch bundleID {
-        case cursor: return "Cursor"
         case vsCodeInsiders: return "VS Code Insiders"
         case vsCodium: return "VSCodium"
         default: return "VS Code"

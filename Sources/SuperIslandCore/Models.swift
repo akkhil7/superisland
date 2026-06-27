@@ -59,7 +59,7 @@ public enum Locator: Codable, Equatable, Sendable {
     /// Shell-integration drop: identified by the TTY device path (/dev/ttysXXX).
     /// Status is driven directly by shell hook events, not AI classification.
     case shell(tty: String)
-    /// VS Code / Cursor editor window. `filePath` is the absolute path of the
+    /// VS Code editor window. `filePath` is the absolute path of the
     /// file active at drop time (readable when the app sets the window's
     /// represented document); `fileName`/`workspaceName` come from the window
     /// title and back the fallback search when the path is unavailable.
