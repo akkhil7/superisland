@@ -55,3 +55,40 @@ public struct CursorHookEvent: Decodable, Equatable, Sendable {
         tty = nil
     }
 }
+
+// MARK: - Event → status mapping
+
+/// SuperIsland-status semantics for Cursor agent lifecycle events. Hooks are
+/// ground truth: they replace AI classification for conversations that emit
+/// them. `stop` with status "completed" returns the resting baseline `.done`;
+/// AppController refines it into done-vs-needsAttention from the assistant's
+/// final message (captured via afterAgentResponse), the same way the Claude
+/// Stop hook is refined.
+public enum CursorHookMapper {
+    public static func update(
+        for event: CursorHookEvent
+    ) -> ClaudeHookMapper.Update? {
+        switch event.event {
+        case "beforeSubmitPrompt":
+            return ClaudeHookMapper.Update(status: .working, reason: "Cursor is working…")
+        case "afterAgentResponse":
+            // Informational: carries the assistant text to stash. Keep status.
+            return ClaudeHookMapper.Update(status: nil, reason: "Cursor is working…")
+        case "stop":
+            switch event.status {
+            case "error":
+                return ClaudeHookMapper.Update(
+                    status: .needsAttention, reason: "Cursor hit an error")
+            case "aborted":
+                return ClaudeHookMapper.Update(status: .done, reason: "Cursor stopped")
+            default:  // "completed" (and any unknown terminal status)
+                return ClaudeHookMapper.Update(
+                    status: .done, reason: "Cursor finished — ready for you")
+            }
+        case "sessionEnd":
+            return ClaudeHookMapper.Update(status: nil, reason: "Session ended")
+        default:
+            return nil
+        }
+    }
+}
