@@ -146,13 +146,13 @@ final class AppController: ObservableObject {
         monitor.isExternallyManaged = { [weak self] drop in
             guard let self else { return false }
             if self.hookManagedDrops.contains(drop.id) { return true }
-            // A Chrome web-AI drop is owned by the extension bridge whenever it's
-            // live (10s freshness). The AI window classifier can't see Chrome's
-            // page content anyway (the AX tree exposes only the tab strip), so
-            // chrome status — including needsAttention — is driven entirely by the
-            // bridge path (see handleChromeTabEvent). On disconnect this falls
-            // back to AI classification.
-            if case .chrome = drop.target.locator, ChromeBridgeStateStore.shared.isConnected {
+            // The AI window classifier is BLIND to Chrome — its AX tree exposes
+            // only the tab strip / window chrome, never the page — so it must
+            // NEVER classify a chrome drop, not even when the bridge briefly goes
+            // stale on an idle settled tab (otherwise it overwrites a correct
+            // needsAttention with a blind "done"). Chrome status is owned entirely
+            // by the bridge + turn-end classifier (see handleChromeTabEvent).
+            if case .chrome = drop.target.locator {
                 return true
             }
             // Codex drops are rollout-driven; AI polling would read whatever
