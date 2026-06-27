@@ -179,7 +179,6 @@ final class AppController: ObservableObject {
             dlog(.proxy, "chrome tab_state \(status.rawValue) — no drop for \(tab.url ?? "?")")
             return
         }
-        dlog(.proxy, "chrome tab_state \(status.rawValue) → drop \(drop.id)")
 
         // The bridge owns the LIVE `working` signal. The resting verdict (done vs
         // needsAttention) is owned by the turn-end classifier — so we never write

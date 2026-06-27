@@ -23,7 +23,7 @@ const TICK_MS = 1000; // state-machine + command-poll cadence
 
 // Flip to false to silence. Logs land in the service-worker console
 // (chrome://extensions → SuperIsland → "service worker").
-const DEBUG = true;
+const DEBUG = false;
 function dbg(...a) {
   if (DEBUG) console.log("[SI]", ...a);
 }
