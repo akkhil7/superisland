@@ -92,3 +92,72 @@ public enum CursorHookMapper {
         }
     }
 }
+
+// MARK: - hooks.json surgery
+
+/// Pure insert/remove of SuperIsland's entries in a Cursor `hooks.json`
+/// dictionary. Cursor's schema is `{"version": 1, "hooks": {"<event>":
+/// [{"command": "...", "type": "command"}]}}` — flatter than Claude's, so the
+/// surgery is bespoke. Foreign hooks are preserved; ours are identified by the
+/// marker substring in the command path.
+public enum CursorHooksConfigurator {
+    public static let events = [
+        "beforeSubmitPrompt", "afterAgentResponse", "stop", "sessionEnd",
+    ]
+    /// Marker in the command path that identifies entries SuperIsland owns.
+    public static let commandMarker = "superisland-cursor-hook"
+
+    public static func isInstalled(config: [String: Any]) -> Bool {
+        guard let hooks = config["hooks"] as? [String: Any] else { return false }
+        return events.allSatisfy { event in
+            ownsEntry(in: (hooks[event] as? [[String: Any]]) ?? [])
+        }
+    }
+
+    public static func install(
+        config: [String: Any], scriptPath: String
+    ) -> [String: Any] {
+        var out = config
+        out["version"] = 1
+        var hooks = (config["hooks"] as? [String: Any]) ?? [:]
+        for event in events {
+            var entries = (hooks[event] as? [[String: Any]]) ?? []
+            if !ownsEntry(in: entries) {
+                entries.append(["command": scriptPath, "type": "command"])
+            }
+            hooks[event] = entries
+        }
+        out["hooks"] = hooks
+        return out
+    }
+
+    public static func uninstall(config: [String: Any]) -> [String: Any] {
+        var out = config
+        guard var hooks = config["hooks"] as? [String: Any] else { return out }
+        for (event, value) in hooks {
+            guard let entries = value as? [[String: Any]] else { continue }
+            let kept = entries.filter { !isOurCommand($0) }
+            if kept.isEmpty {
+                hooks.removeValue(forKey: event)
+            } else {
+                hooks[event] = kept
+            }
+        }
+        if hooks.isEmpty {
+            out.removeValue(forKey: "hooks")
+        } else {
+            out["hooks"] = hooks
+        }
+        return out
+    }
+
+    private static func ownsEntry(
+        in entries: [[String: Any]]
+    ) -> Bool {
+        entries.contains { isOurCommand($0) }
+    }
+
+    private static func isOurCommand(_ entry: [String: Any]) -> Bool {
+        (entry["command"] as? String)?.contains(commandMarker) == true
+    }
+}
