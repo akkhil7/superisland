@@ -889,31 +889,19 @@ final class AppController: ObservableObject {
             threadLabel = claudeIntegration.sessionTitle(forContentURL: url)
         }
 
-        // A session is tracked by at most one drop. If this window already
-        // resolves to a session another drop holds, refuse instead of creating
-        // a duplicate that would race the original for the same status updates.
-        if let url = contentURL, store.drop(forContentURL: url) != nil {
-            showToast("Already tracking this session")
-            NSSound.beep()
-            return false
-        }
-        // Chrome drops carry no contentURL, so the guard above can't see them —
-        // dedup on the tab identity (extension tabID when present, else exact URL).
-        // Re-dropping the same tab otherwise piles up duplicates that race for the
-        // same bridge updates. Only the new drop's extension-spaced tabID counts.
-        if case let .chrome(windowID, _, _, tabID, url, _, _, _) = locator,
-            chromeDrop(tabID: windowID != nil ? tabID : nil, url: url) != nil
-        {
-            showToast("Already tracking this tab")
-            NSSound.beep()
-            return false
-        }
-
         let target = WindowTarget(
             bundleID: front.bundleID, appName: front.appName, pid: front.pid,
             windowID: front.windowID, windowTitle: front.title, locator: locator,
             contextAnchor: contextAnchor, contentURL: contentURL
         )
+        // One drop per tracked thing, across EVERY integration: if a drop already
+        // targets this exact tab / session / window / file / tty, refuse instead
+        // of creating a duplicate that would race the original for status updates.
+        if store.drops.contains(where: { DropIdentity.sameTarget($0.target, target) }) {
+            showToast("Already tracking this")
+            NSSound.beep()
+            return false
+        }
         // Editor drops: "file · workspace" beats the raw window title.
         if case let .editor(_, fileName, workspaceName) = locator {
             threadLabel = [fileName, workspaceName].compactMap { $0 }
