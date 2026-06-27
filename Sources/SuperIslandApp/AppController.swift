@@ -27,6 +27,9 @@ final class AppController: ObservableObject {
     /// Drops that have received at least one Claude hook event this run —
     /// hooks are ground truth, so the AI monitor leaves these alone.
     private var hookManagedDrops = Set<UUID>()
+    /// Last bridge-reported status per chrome drop, to fire the turn-end
+    /// classifier exactly once on the working→done edge (not every done event).
+    private var chromeLastStatus: [UUID: DropStatus] = [:]
 
     /// Per-drop counter bumped on every Claude hook event, used to detect a
     /// `PreToolUse` that no later event supersedes (a tool blocked on your
@@ -142,15 +145,14 @@ final class AppController: ObservableObject {
         monitor.isExternallyManaged = { [weak self] drop in
             guard let self else { return false }
             if self.hookManagedDrops.contains(drop.id) { return true }
-            // The extension bridge owns a chrome drop's live `working` signal.
-            // Skip the AI classifier only while a turn is actively working; once
-            // it settles, let the classifier resolve done vs needsAttention. On
-            // bridge disconnect this falls back to full AI classification.
-            if case .chrome = drop.target.locator {
-                return ChromeStatusPolicy.bridgeOwnsLiveStatus(
-                    locator: drop.target.locator,
-                    status: drop.status,
-                    bridgeConnected: ChromeBridgeStateStore.shared.isConnected)
+            // A Chrome web-AI drop is owned by the extension bridge whenever it's
+            // live (10s freshness). The AI window classifier can't see Chrome's
+            // page content anyway (the AX tree exposes only the tab strip), so
+            // chrome status — including needsAttention — is driven entirely by the
+            // bridge path (see handleChromeTabEvent). On disconnect this falls
+            // back to AI classification.
+            if case .chrome = drop.target.locator, ChromeBridgeStateStore.shared.isConnected {
+                return true
             }
             // Codex drops are rollout-driven; AI polling would read whatever
             // thread happens to be visible onto them.
@@ -175,8 +177,42 @@ final class AppController: ObservableObject {
             dlog(.proxy, "chrome tab_state \(status.rawValue) — no drop for \(tab.url ?? "?")")
             return
         }
+        let prev = chromeLastStatus[drop.id]
+        chromeLastStatus[drop.id] = status
         dlog(.proxy, "chrome tab_state \(status.rawValue) → drop \(drop.id)")
         store.updateStatus(id: drop.id, to: status, reason: Self.chromeReason(status))
+
+        // Turn-end edge: ask the AI whether the assistant's final message is
+        // waiting on the user (a question / request). The extension's DOM text is
+        // the only readable source — Chrome's AX tree doesn't expose the
+        // conversation — so classify that, not a window snapshot.
+        if status == .done, prev != .done,
+            let text = event.domSummary?.text, text.count >= 40
+        {
+            classifyChromeTurnEnd(dropID: drop.id, conversationTail: text)
+        }
+    }
+
+    /// Classify a settled chrome turn's conversation tail with the focused
+    /// turn-end prompt and UPGRADE the drop to needsAttention if the assistant is
+    /// waiting on the user. Only upgrades a still-`done` drop, so a new turn that
+    /// started while the call was in flight (bridge set it back to working) is
+    /// never clobbered — that is the self-healing path.
+    private func classifyChromeTurnEnd(dropID: UUID, conversationTail: String) {
+        Task { @MainActor [weak self] in
+            guard let self, let token = await self.auth.validAccessToken() else { return }
+            guard
+                let verdict = try? await ClaudeClassifier(
+                    auth: .proxy(url: BackendConfig.classifyURL, bearer: token),
+                    model: ClassifierProtocolBuilder.defaultModel
+                ).classifyTurnEndMessage(conversationTail)
+            else { return }
+            dlog(.proxy, "chrome turn-end → \(verdict.status.rawValue)")
+            guard verdict.status == .needsAttention,
+                self.store.drop(id: dropID)?.status == .done
+            else { return }
+            self.store.updateStatus(id: dropID, to: .needsAttention, reason: verdict.reason)
+        }
     }
 
     /// The `.chrome` drop an incoming tab_state belongs to. Primary key is the

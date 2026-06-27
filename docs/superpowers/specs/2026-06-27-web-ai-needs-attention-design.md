@@ -1,8 +1,40 @@
 # Web-AI NEEDS_ATTENTION detection — design
 
 **Date:** 2026-06-27
-**Status:** Approved (pending spec review)
+**Status:** Implemented — see REVISION below
 **Area:** Chrome bridge + Monitor (status pipeline for web-AI drops)
+
+## REVISION (post-implementation): the AX assumption was wrong
+
+The original design below routed Chrome needsAttention through the existing
+`Monitor` AI classifier, assuming it could read the conversation from the
+window's accessibility text. **It can't** — verified live: for a Gemini window
+the captured AX text was the Chrome *tab strip + window chrome* ("Google Flights
+— Memory usage — New tab — Open Gemini in Chrome…"), not one word of the
+conversation. So the classifier returned `done` with reason "no active task or
+prompt visible." No prompt change can fix a blind input.
+
+**Corrected approach (implemented):** the conversation is only readable from the
+**extension's DOM** (`content.js` reads `document.body.innerText`). So:
+
+- `content.js` sends the **conversation tail** (last ~4000 chars, newlines kept)
+  in `domSummary.text` instead of a 600-char nav snippet.
+- On the **working→done edge**, `AppController.handleChromeTabEvent` calls the
+  **focused `turnEndSystemPrompt`** (`ClaudeClassifier.classifyTurnEndMessage`)
+  on that text — the prompt already nails "ends with a question → needsAttention"
+  and is validated to ignore `?` in code and treat sign-offs as `done`. If the
+  verdict is `needsAttention`, it **upgrades** the still-`done` drop (and only if
+  still `done`, so a new turn that started meanwhile is never clobbered).
+- Chrome stays fully **bridge-owned**; the `Monitor`/AX path never touches it
+  (`isExternallyManaged` returns true for chrome while the bridge is connected).
+- The general window `systemPrompt` is **left as-is** (it's for terminals/editors
+  with no clean message). `ChromeStatusPolicy` and the Monitor verdict-filter
+  from the original design were reverted — not needed.
+
+Verified: question-ending turn → `needsAttention`; plain answer → `done`. The
+original design (below) is retained for context.
+
+---
 
 ## Problem
 

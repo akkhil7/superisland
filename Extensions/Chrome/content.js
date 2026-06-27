@@ -26,8 +26,16 @@ function stopButtonPresent() {
 
 function collectSignal() {
   const working = stopButtonPresent();
-  const text = (document.body?.innerText || "").replace(/\s+/g, " ").trim().slice(0, 600);
-  return { domConfirmsWorking: working, text };
+  // The conversation TAIL (recent messages incl. the assistant's latest turn).
+  // Chrome's accessibility tree doesn't expose page content, so this DOM read is
+  // the only place the app can see the conversation — it classifies this at
+  // turn-end to decide needsAttention. Keep newlines so message boundaries
+  // survive; cap at ~4000 chars (the end, where the latest message is).
+  const full = (document.body?.innerText || "")
+    .replace(/[ \t]+/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim();
+  return { domConfirmsWorking: working, text: full.slice(-4000) };
 }
 
 function report() {

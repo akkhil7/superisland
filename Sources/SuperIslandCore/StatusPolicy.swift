@@ -54,30 +54,3 @@ public enum MonitorPolicy {
         }
     }
 }
-
-/// Reconciles the two status owners for a Chrome web-AI drop: the extension
-/// bridge owns the *live* `working` signal (network-detected), and the AI
-/// monitor resolves the *resting* state (`done` vs `needsAttention`) from the
-/// settled conversation. Pure and UI-free so it can be unit-tested.
-public enum ChromeStatusPolicy {
-    /// True when the AI monitor should SKIP this drop because the bridge is
-    /// actively driving it. Only chrome drops, only while the bridge is
-    /// connected AND the drop is live-`working`; once it settles (or the bridge
-    /// disconnects) the monitor takes over so it can resolve needsAttention.
-    public static func bridgeOwnsLiveStatus(
-        locator: Locator,
-        status: DropStatus,
-        bridgeConnected: Bool
-    ) -> Bool {
-        guard case .chrome = locator else { return false }
-        return bridgeConnected && status == .working
-    }
-
-    /// True when the monitor MAY apply this verdict. For a chrome drop the bridge
-    /// owns the live `working` signal, so an AI `working` verdict is ignored;
-    /// `done` / `needsAttention` / `unknown` / `stale` apply normally.
-    public static func monitorMayApply(verdict: DropStatus, locator: Locator) -> Bool {
-        if case .chrome = locator, verdict == .working { return false }
-        return true
-    }
-}
