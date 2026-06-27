@@ -11,6 +11,11 @@ final class ChromeBridgeServer {
     private var listener: NWListener?
     private let registry = ChromeBridgeStateStore.shared
 
+    /// App-layer hook fired for every allowlisted `tab_state` event AFTER it is
+    /// stored, so the controller can drive the matching drop's status. Mirrors
+    /// `ShellServer.onClaudeEvent`; nil until `AppController` wires it.
+    var onTabState: ((ChromeBridgeExtensionEvent) -> Void)?
+
     func start() {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
@@ -75,7 +80,21 @@ final class ChromeBridgeServer {
             )
         }
 
+        // DEFENSE IN DEPTH: the extension is untrusted. Reject any tab event whose
+        // URL host is not an allowlisted AI-provider host — never update state.
+        // This is the authoritative trust boundary (the extension and native host
+        // are replaceable/compromisable; the app is not).
+        guard ChromeHostAllowlist.isAllowed(urlString: event.tab?.url) else {
+            return Self.responseData(
+                ChromeBridgeHTTPResponse(
+                    ok: false, commands: nil, error: "rejected: host not allowlisted")
+            )
+        }
+
         registry.update(event: event)
+        // Allowlist already enforced above (the trust boundary). Hand the stored
+        // event to the app so it can drive the matching drop's status.
+        if event.type == .tabState { onTabState?(event) }
         return Self.responseData(ChromeBridgeHTTPResponse(ok: true, commands: [], error: nil))
     }
 
