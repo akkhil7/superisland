@@ -18,6 +18,7 @@ final class AppController: ObservableObject {
     let chromeIntegration = ChromeIntegration()
     let claudeIntegration = ClaudeIntegration()
     let codexIntegration = CodexIntegration()
+    let cursorIntegration = CursorIntegration()
     let auth = AuthService()
 
     /// Set by the AppDelegate to show/hide the notch island as the user signs
@@ -37,6 +38,10 @@ final class AppController: ObservableObject {
     /// `PreToolUse` that no later event supersedes (a tool blocked on your
     /// approval — Claude Desktop fires no Notification for in-app prompts).
     private var claudeToolGeneration: [UUID: Int] = [:]
+
+    /// Last `afterAgentResponse` text per Cursor conversation id, classified at
+    /// `stop` to tell "done" from "waiting on you" (the stop payload has no text).
+    private var cursorLastResponse: [String: String] = [:]
 
     @Published var islandExpanded = false
     @Published var hotkeyDiagnostic: HotkeyRegistrationDiagnostic?
@@ -104,6 +109,7 @@ final class AppController: ObservableObject {
         // Pick up newly-managed hook events (e.g. PreToolUse/PostToolUse) for
         // users who enabled the Claude integration on an earlier version.
         claudeIntegration.reconcile()
+        cursorIntegration.reconcile()
         backfillClaudeLabels()
         // Monitoring (and the island) only run while signed in. This subscription
         // fires immediately with the current auth state and on every change.
@@ -144,6 +150,9 @@ final class AppController: ObservableObject {
         shellServer.onCodexEvent = { [weak self] event in
             self?.handleCodexHookEvent(event)
         }
+        shellServer.onCursorEvent = { [weak self] event in
+            self?.handleCursorHookEvent(event)
+        }
         shellServer.start()
         chromeBridgeServer.onTabState = { [weak self] event in
             self?.handleChromeTabEvent(event)
@@ -171,6 +180,9 @@ final class AppController: ObservableObject {
             }
             // Codex drops are rollout-driven; AI polling would read whatever
             // thread happens to be visible onto them.
+            if drop.target.contentURL?.hasPrefix(CursorIntegration.sessionURLPrefix) == true {
+                return true
+            }
             return self.settings.codexIntegrationEnabled
                 && drop.target.contentURL?.hasPrefix(CodexIntegration.sessionURLPrefix) == true
         }
@@ -349,6 +361,85 @@ final class AppController: ObservableObject {
             store.updateStatusAndLabel(id: drop.id, to: status, label: title, reason: update.reason)
         } else {
             store.noteReason(id: drop.id, reason: update.reason)
+        }
+    }
+
+    // MARK: - Cursor agent hooks
+
+    private func handleCursorHookEvent(_ event: CursorHookEvent) {
+        guard auth.isSignedIn else { return }  // signed out → app is locked
+        // Feed the conversation index regardless of whether a drop exists yet,
+        // so a drop placed moments later can bind to this conversation.
+        cursorIntegration.recordEvent(
+            conversationID: event.conversationID, workspaceRoots: event.workspaceRoots,
+            prompt: event.prompt, at: Date()
+        )
+        // Stash the assistant message for turn-end classification at `stop`.
+        if event.event == "afterAgentResponse", let text = event.text, !text.isEmpty {
+            cursorLastResponse[event.conversationID] = text
+        }
+
+        guard let update = CursorHookMapper.update(for: event) else { return }
+        let label = AgentSessionLabel.label(agent: "Cursor", prompt: event.prompt)
+
+        guard let drop = cursorDrop(for: event) else { return }
+        hookManagedDrops.insert(drop.id)
+
+        // `stop` ends the turn — refine completed into done vs needsAttention
+        // from the stashed assistant message (the stop payload carries no text).
+        if event.event == "stop", event.status != "error" {
+            let stashed = cursorLastResponse[event.conversationID]
+            cursorLastResponse[event.conversationID] = nil
+            refineCursorTurnEnd(dropID: drop.id, label: label, message: stashed)
+            return
+        }
+        apply(update, to: drop, label: label)
+    }
+
+    /// The drop a Cursor hook event belongs to: a GUI drop matched by the
+    /// `cursor://session/<id>` content URL, a cursor-agent CLI drop matched by
+    /// TTY, or an unbound Cursor drop adopted on its first event (cold start).
+    private func cursorDrop(for event: CursorHookEvent) -> Drop? {
+        let sessionURL = CursorIntegration.sessionURLPrefix + event.conversationID
+        if let drop = store.drops.first(where: { $0.target.contentURL == sessionURL }) {
+            return drop
+        }
+        if let drop = terminalDrop(tty: event.tty),
+            store.setContentURL(id: drop.id, url: sessionURL)
+        {
+            return drop
+        }
+        // Cold start: a Cursor drop placed before any event this session has no
+        // session URL yet. Adopt the most recent unbound Cursor drop and bind it.
+        if let drop = store.drops.last(where: { d in
+            d.target.bundleID == CursorIntegration.bundleID
+                && (d.target.contentURL?.hasPrefix(CursorIntegration.sessionURLPrefix) != true)
+        }), store.setContentURL(id: drop.id, url: sessionURL) {
+            return drop
+        }
+        return nil
+    }
+
+    /// Resolve a Cursor `stop` into done vs needs-attention from the stashed
+    /// assistant message (Haiku when a token is set, structural heuristic
+    /// otherwise). Falls back to plain "done" when there's no message.
+    private func refineCursorTurnEnd(dropID: UUID, label: String?, message: String?) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let token = await self.auth.validAccessToken()
+            let result: (status: DropStatus, reason: String)?
+            if let message, !message.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                result = await self.cursorIntegration.classifyFinalMessage(message, bearer: token)
+            } else {
+                result = nil
+            }
+            guard self.store.drop(id: dropID) != nil else { return }
+            self.store.updateStatusAndLabel(
+                id: dropID,
+                to: result?.status ?? .done,
+                label: label,
+                reason: result?.reason ?? "Cursor finished — ready for you"
+            )
         }
     }
 
@@ -858,8 +949,8 @@ final class AppController: ObservableObject {
         case .codex:
             installed = settings.codexIntegrationEnabled
         case .cursor:
-            // Interim stub — replaced by the CursorIntegration.isInstalled check in a later task.
-            installed = true
+            cursorIntegration.refresh()
+            installed = cursorIntegration.isInstalled
         }
         return installed ? nil : required
     }
@@ -949,6 +1040,17 @@ final class AppController: ObservableObject {
         {
             contentURL = CodexIntegration.sessionURLPrefix + session.id
             threadLabel = session.title
+        }
+        // Cursor desktop: no TTY for the GUI — bind to the conversation most
+        // recently active in the dropped window's workspace (the one you're
+        // looking at), the same recency rule Codex uses for threads.
+        if front.bundleID == CursorIntegration.bundleID, cursorIntegration.isInstalled {
+            let workspaceName = EditorWindowTitle.parse(front.title).workspaceName
+            if let convo = cursorIntegration.currentConversationGuess(workspaceName: workspaceName) {
+                contentURL = CursorIntegration.sessionURLPrefix + convo.id
+                threadLabel = AgentSessionLabel.label(agent: "Cursor", prompt: convo.title)
+                    ?? threadLabel
+            }
         }
         // Claude Desktop: the conversation title lives in the session metadata,
         // keyed by the local_<id> in the content URL. Resolve it now so an idle
