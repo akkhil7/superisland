@@ -161,10 +161,6 @@ final class AgentTerminalSupportTests: XCTestCase {
             IntegrationRouter.strength(locator: locator, bundleID: EditorApp.vsCode),
             .appSpecific
         )
-        XCTAssertEqual(
-            IntegrationRouter.strength(locator: locator, bundleID: CursorDeepLink.bundleID),
-            .appSpecific
-        )
     }
 
     func testGenericLocatorInCursorBundleIsGeneric() {

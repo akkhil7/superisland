@@ -858,7 +858,7 @@ final class AppController: ObservableObject {
         case .codex:
             installed = settings.codexIntegrationEnabled
         case .cursor:
-            // CursorIntegration live-check is wired in a later task; allow for now.
+            // Interim stub — replaced by the CursorIntegration.isInstalled check in a later task.
             installed = true
         }
         return installed ? nil : required

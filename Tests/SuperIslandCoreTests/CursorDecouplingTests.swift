@@ -29,6 +29,6 @@ final class CursorDecouplingTests: XCTestCase {
             contentURL: "cursor://session/abc", label: "Cursor"
         )
         XCTAssertEqual(source.name, "Cursor")
-        XCTAssertNotEqual(source.icon, "curlybraces")  // not the editor badge
+        XCTAssertEqual(source.icon, "cursorarrow.rays")
     }
 }
