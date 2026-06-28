@@ -18,7 +18,8 @@ final class ChromeCaptureMatchingTests: XCTestCase {
 
     private func tab(_ id: Int, title: String, url: String) -> ChromeTabState {
         ChromeTabState(
-            tabID: id, windowID: 1, index: id, url: url, title: title, documentID: nil, status: nil)
+            tabID: id, windowID: 1, index: id, url: url, title: title, documentID: nil,
+            status: nil, statusSource: nil)
     }
 
     func testStaleLastActiveTabIsRejectedWhenTitleDisagrees() {

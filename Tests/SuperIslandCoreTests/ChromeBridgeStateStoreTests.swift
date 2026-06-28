@@ -17,7 +17,8 @@ final class ChromeBridgeStateStoreTests: XCTestCase {
                 url: "https://claude.ai/chat",
                 title: "Claude",
                 documentID: "doc-1",
-                status: .working
+                status: .working,
+                statusSource: nil
             ),
             domSummary: ChromeDOMSummary(
                 title: "Claude",
