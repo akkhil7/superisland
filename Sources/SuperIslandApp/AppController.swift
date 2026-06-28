@@ -840,7 +840,9 @@ final class AppController: ObservableObject {
             let previous = lastAlertedStatus[drop.id]
             lastAlertedStatus[drop.id] = drop.status
             let hasBanner = alertBanners.contains { $0.id == drop.id }
-            switch AlertPolicy.bannerAction(from: previous, to: drop.status, hasBanner: hasBanner) {
+            let action = AlertPolicy.bannerAction(
+                from: previous, to: drop.status, hasBanner: hasBanner)
+            switch action {
             case .raise:
                 upsertBanner(for: drop)
             case .refresh:
@@ -859,6 +861,11 @@ final class AppController: ObservableObject {
                 }
             case .leave:
                 break
+            }
+            // A newly-raised banner is "showing a notification" — chime once.
+            // Refreshes stay silent so a drop that keeps updating doesn't repeat.
+            if AlertPolicy.shouldChime(action: action, soundEnabled: settings.alertSoundEnabled) {
+                AlertChime.play()
             }
         }
         lastAlertedStatus = lastAlertedStatus.filter { present.contains($0.key) }
