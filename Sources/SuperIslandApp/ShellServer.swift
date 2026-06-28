@@ -40,6 +40,9 @@ final class ShellServer {
     /// payload shape as Claude hooks.
     var onCodexEvent: ((ClaudeHookEvent) -> Void)?
 
+    /// Called on the main queue for Cursor agent hook events (POST /cursor).
+    var onCursorEvent: ((CursorHookEvent) -> Void)?
+
     func start() {
         let params = NWParameters.tcp
         params.allowLocalEndpointReuse = true
@@ -112,6 +115,16 @@ final class ShellServer {
             if var event = try? JSONDecoder().decode(ClaudeHookEvent.self, from: data) {
                 event.tty = hookTTY
                 onCodexEvent?(event)
+            }
+            return
+        }
+        if path.hasPrefix("/cursor") {
+            HookDebugLog.log("RAW /cursor tty=\(hookTTY ?? "-") body=\(body)")
+            if var event = try? JSONDecoder().decode(CursorHookEvent.self, from: data) {
+                event.tty = hookTTY
+                onCursorEvent?(event)
+            } else {
+                HookDebugLog.log("  → DECODE FAILED for /cursor payload")
             }
             return
         }
