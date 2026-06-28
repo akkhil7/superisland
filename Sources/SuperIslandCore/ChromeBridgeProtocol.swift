@@ -163,7 +163,7 @@ public struct ChromeTabState: Codable, Equatable, Sendable {
     public var title: String?
     public var documentID: String?
     public var status: DropStatus?
-    public var statusSource: ChromeStatusSource? = nil
+    public var statusSource: ChromeStatusSource?
 
     enum CodingKeys: String, CodingKey {
         case tabID = "tabId"
