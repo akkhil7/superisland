@@ -1046,9 +1046,11 @@ final class AppController: ObservableObject {
         // looking at), the same recency rule Codex uses for threads.
         if front.bundleID == CursorIntegration.bundleID, cursorIntegration.isInstalled {
             let workspaceName = EditorWindowTitle.parse(front.title).workspaceName
-            if let convo = cursorIntegration.currentConversationGuess(workspaceName: workspaceName) {
+            if let convo = cursorIntegration.currentConversationGuess(workspaceName: workspaceName)
+            {
                 contentURL = CursorIntegration.sessionURLPrefix + convo.id
-                threadLabel = AgentSessionLabel.label(agent: "Cursor", prompt: convo.title)
+                threadLabel =
+                    AgentSessionLabel.label(agent: "Cursor", prompt: convo.title)
                     ?? threadLabel
             }
         }

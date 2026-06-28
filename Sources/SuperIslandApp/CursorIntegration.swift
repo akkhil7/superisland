@@ -110,7 +110,8 @@ final class CursorIntegration: ObservableObject {
     func recordEvent(
         conversationID: String, workspaceRoots: [String], prompt: String?, at date: Date
     ) {
-        var convo = conversations[conversationID]
+        var convo =
+            conversations[conversationID]
             ?? Conversation(workspaceRoots: workspaceRoots, lastPrompt: nil, lastEventAt: date)
         if !workspaceRoots.isEmpty { convo.workspaceRoots = workspaceRoots }
         if let prompt, !prompt.isEmpty { convo.lastPrompt = prompt }

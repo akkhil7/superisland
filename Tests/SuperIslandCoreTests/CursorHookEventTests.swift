@@ -7,7 +7,8 @@ final class CursorHookEventTests: XCTestCase {
     }
 
     func testDecodesBeforeSubmitPrompt() throws {
-        let e = try decode("""
+        let e = try decode(
+            """
             {"hook_event_name":"beforeSubmitPrompt","conversation_id":"c1",
              "workspace_roots":["/Users/x/proj"],"prompt":"fix the bug"}
             """)
@@ -19,7 +20,8 @@ final class CursorHookEventTests: XCTestCase {
     }
 
     func testDecodesAfterAgentResponse() throws {
-        let e = try decode("""
+        let e = try decode(
+            """
             {"hook_event_name":"afterAgentResponse","conversation_id":"c1","text":"Done — all green."}
             """)
         XCTAssertEqual(e.event, "afterAgentResponse")
@@ -27,7 +29,8 @@ final class CursorHookEventTests: XCTestCase {
     }
 
     func testDecodesStopWithStatus() throws {
-        let e = try decode("""
+        let e = try decode(
+            """
             {"hook_event_name":"stop","conversation_id":"c1","status":"completed"}
             """)
         XCTAssertEqual(e.event, "stop")
@@ -35,7 +38,8 @@ final class CursorHookEventTests: XCTestCase {
     }
 
     func testMissingWorkspaceRootsDefaultsToEmpty() throws {
-        let e = try decode("""
+        let e = try decode(
+            """
             {"hook_event_name":"stop","conversation_id":"c1"}
             """)
         XCTAssertEqual(e.workspaceRoots, [])
