@@ -74,6 +74,10 @@ final class AppController: ObservableObject {
     private var observers: [NSObjectProtocol] = []
     private var permissionTimer: Timer?
     private var codexTimer: Timer?
+    private var claudeTimer: Timer?
+    /// Per-drop transcript modification date last classified, so the Claude
+    /// Desktop watcher only re-reads a transcript that actually changed.
+    private var claudeTranscriptMtime: [UUID: Date] = [:]
     private var cancellables = Set<AnyCancellable>()
     private var autoDismissScheduled = Set<UUID>()
 
@@ -156,12 +160,22 @@ final class AppController: ObservableObject {
             if case .chrome = drop.target.locator {
                 return true
             }
+            // Claude Desktop conversations: the AI window-reader is BLIND to any
+            // conversation that isn't the one on screen (the AX tree exposes only
+            // the visible web area), so a background session waiting on the user
+            // gets frozen at a stale status. Status is owned by the Claude hooks
+            // and the transcript watcher (pollClaudeDesktopDrops) — both of which
+            // see every session regardless of which is foreground.
+            if drop.target.bundleID == ClaudeDeepLink.bundleID {
+                return true
+            }
             // Codex drops are rollout-driven; AI polling would read whatever
             // thread happens to be visible onto them.
             return self.settings.codexIntegrationEnabled
                 && drop.target.contentURL?.hasPrefix(CodexIntegration.sessionURLPrefix) == true
         }
         startCodexWatcher()
+        startClaudeWatcher()
     }
 
     // MARK: - Chrome bridge (extension is ground truth for web-AI drops)
@@ -335,6 +349,58 @@ final class AppController: ObservableObject {
             store.updateStatusAndLabel(id: drop.id, to: status, label: title, reason: update.reason)
         } else {
             store.noteReason(id: drop.id, reason: update.reason)
+        }
+    }
+
+    // MARK: - Claude Desktop transcript watcher
+
+    /// Claude Desktop conversations that aren't the one on screen are invisible
+    /// to the AI window-reader, so we drive their status from the on-disk
+    /// transcript instead — which is readable for every session regardless of
+    /// which is foreground. Hook-managed (actively-running) sessions are left to
+    /// the hooks; this covers the idle / background / not-yet-bound ones.
+    private func startClaudeWatcher() {
+        let t = Timer.scheduledTimer(withTimeInterval: 5, repeats: true) { [weak self] _ in
+            Task { @MainActor in self?.pollClaudeDesktopDrops() }
+        }
+        RunLoop.main.add(t, forMode: .common)
+        claudeTimer = t
+        pollClaudeDesktopDrops()
+    }
+
+    private func pollClaudeDesktopDrops() {
+        guard auth.isSignedIn else { return }
+        let live = Set(store.drops.map(\.id))
+        claudeTranscriptMtime = claudeTranscriptMtime.filter { live.contains($0.key) }
+        for drop in store.drops where drop.target.bundleID == ClaudeDeepLink.bundleID {
+            // Active sessions are owned by the hooks; don't double-classify them.
+            if hookManagedDrops.contains(drop.id) { continue }
+            guard let url = drop.target.contentURL,
+                let path = claudeIntegration.transcriptPath(forContentURL: url)
+            else { continue }
+            // mtime-gate: only re-read a transcript that actually changed (idle
+            // sessions stay put, so this costs one classify when they settle).
+            let mtime =
+                (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate])
+                as? Date
+            guard let mtime, claudeTranscriptMtime[drop.id] != mtime else { continue }
+            claudeTranscriptMtime[drop.id] = mtime
+            classifyClaudeDesktopTranscript(dropID: drop.id, path: path)
+        }
+    }
+
+    private func classifyClaudeDesktopTranscript(dropID: UUID, path: String) {
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let token = await self.auth.validAccessToken()
+            guard
+                let result = await self.claudeIntegration.classifyTurnEnd(
+                    transcriptPath: path, bearer: token),
+                self.store.drop(id: dropID) != nil,
+                // A hook may have claimed the drop while the read was in flight.
+                !self.hookManagedDrops.contains(dropID)
+            else { return }
+            self.store.updateStatus(id: dropID, to: result.status, reason: result.reason)
         }
     }
 
