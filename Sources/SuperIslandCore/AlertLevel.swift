@@ -94,4 +94,14 @@ public enum AlertPolicy {
         guard hasBanner else { return .leave }
         return isAlerting(new) ? .refresh : .dismiss
     }
+
+    /// Whether to play the alert chime for a given banner action.
+    ///
+    /// We chime only when a banner is newly *raised* (a fresh alerting
+    /// transition) and the user has the sound enabled. A `.refresh` keeps an
+    /// already-showing banner's text current while the drop stays alerting —
+    /// replaying the chime there would sound repeatedly, so it stays silent.
+    public static func shouldChime(action: BannerAction, soundEnabled: Bool) -> Bool {
+        action == .raise && soundEnabled
+    }
 }

@@ -104,4 +104,23 @@ final class AlertPolicyTests: XCTestCase {
             .refresh
         )
     }
+
+    // MARK: - shouldChime (raised banners only, gated by the sound setting)
+
+    func testChimesOnlyOnRaiseWhenSoundEnabled() {
+        XCTAssertTrue(AlertPolicy.shouldChime(action: .raise, soundEnabled: true))
+
+        // A refresh of an already-showing banner must stay silent, or a drop
+        // that keeps updating while alerting would replay the chime.
+        XCTAssertFalse(AlertPolicy.shouldChime(action: .refresh, soundEnabled: true))
+        XCTAssertFalse(AlertPolicy.shouldChime(action: .dismiss, soundEnabled: true))
+        XCTAssertFalse(AlertPolicy.shouldChime(action: .leave, soundEnabled: true))
+    }
+
+    func testNeverChimesWhenSoundDisabled() {
+        XCTAssertFalse(AlertPolicy.shouldChime(action: .raise, soundEnabled: false))
+        XCTAssertFalse(AlertPolicy.shouldChime(action: .refresh, soundEnabled: false))
+        XCTAssertFalse(AlertPolicy.shouldChime(action: .dismiss, soundEnabled: false))
+        XCTAssertFalse(AlertPolicy.shouldChime(action: .leave, soundEnabled: false))
+    }
 }
