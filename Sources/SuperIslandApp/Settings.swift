@@ -60,8 +60,16 @@ final class Settings: ObservableObject {
         didSet { defaults.set(diagnosticsEnabled, forKey: Keys.diagnosticsEnabled) }
     }
 
+    /// Play a chime when a top-of-screen alert banner is raised (a drop enters
+    /// an alerting state). Only audible at the `.notify` alert level, since that
+    /// is the only level that shows banners. Default on.
+    @Published var alertSoundEnabled: Bool {
+        didSet { defaults.set(alertSoundEnabled, forKey: Keys.alertSoundEnabled) }
+    }
+
     enum Keys {
         static let diagnosticsEnabled = "diagnosticsEnabled"
+        static let alertSoundEnabled = "alertSoundEnabled"
         static let islandExpandOnHover = "islandExpandOnHover"
         static let alertLevel = "alertLevel"
         static let codexIntegrationEnabled = "codexIntegrationEnabled"
@@ -84,6 +92,7 @@ final class Settings: ObservableObject {
         launchAtLogin = SMAppService.mainApp.status == .enabled
         autoDismissMinutes = defaults.object(forKey: Keys.autoDismiss) as? Int ?? 0
         diagnosticsEnabled = defaults.object(forKey: Keys.diagnosticsEnabled) as? Bool ?? false
+        alertSoundEnabled = defaults.object(forKey: Keys.alertSoundEnabled) as? Bool ?? true
         let storedKeyCode =
             defaults.object(forKey: Keys.hotkeyKeyCode) as? Int ?? Self.defaultKeyCode
         let storedModifiers =

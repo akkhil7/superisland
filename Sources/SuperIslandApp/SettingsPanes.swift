@@ -168,6 +168,12 @@ struct GeneralSettingsPane: View {
                         subtitle: settings.alertLevel.detail
                     )
                 }
+                Toggle(isOn: $settings.alertSoundEnabled) {
+                    SettingsRowLabel(
+                        icon: "speaker.wave.2", color: .blue,
+                        title: "Play sound for alerts"
+                    )
+                }
             }
 
             Section {
