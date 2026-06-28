@@ -32,12 +32,22 @@ public struct ClaudeHookEvent: Decodable, Equatable, Sendable {
     /// the hook's stdin payload: the hook script reports it as a query
     /// parameter and the server fills it in. nil for desktop-app sessions.
     public var tty: String?
+    /// The tool being invoked (PreToolUse / PostToolUse only), e.g. "Bash" or
+    /// "DesignSync" — the Claude Design feature drives its canvas through the
+    /// `DesignSync` tool.
+    public let toolName: String?
+    /// The Claude Design project id from `tool_input.projectId`, present only on
+    /// `DesignSync` events. It's the same id as the `/design/p/<id>` content URL
+    /// of the Design window's drop, so it's the link between this session's
+    /// lifecycle and that drop (the session id alone never matches it).
+    public let designProjectID: String?
 
     public init(
         sessionID: String, event: String, message: String? = nil,
         cwd: String? = nil, prompt: String? = nil, transcriptPath: String? = nil,
         permissionMode: String? = nil, lastAssistantMessage: String? = nil,
-        notificationType: String? = nil, tty: String? = nil
+        notificationType: String? = nil, tty: String? = nil,
+        toolName: String? = nil, designProjectID: String? = nil
     ) {
         self.sessionID = sessionID
         self.event = event
@@ -49,6 +59,8 @@ public struct ClaudeHookEvent: Decodable, Equatable, Sendable {
         self.lastAssistantMessage = lastAssistantMessage
         self.notificationType = notificationType
         self.tty = tty
+        self.toolName = toolName
+        self.designProjectID = designProjectID
     }
 
     enum CodingKeys: String, CodingKey {
@@ -58,7 +70,15 @@ public struct ClaudeHookEvent: Decodable, Equatable, Sendable {
         case permissionMode = "permission_mode"
         case lastAssistantMessage = "last_assistant_message"
         case notificationType = "notification_type"
+        case toolName = "tool_name"
+        case toolInput = "tool_input"
         case message, cwd, prompt
+    }
+
+    /// Keys inside the `tool_input` object we care about. The object is
+    /// tool-specific and otherwise opaque; we only pull the Design project id.
+    private enum ToolInputKeys: String, CodingKey {
+        case projectId
     }
 
     public init(from decoder: Decoder) throws {
@@ -74,6 +94,18 @@ public struct ClaudeHookEvent: Decodable, Equatable, Sendable {
             String.self, forKey: .lastAssistantMessage)
         notificationType = try container.decodeIfPresent(String.self, forKey: .notificationType)
         tty = nil
+        let toolName = try container.decodeIfPresent(String.self, forKey: .toolName)
+        self.toolName = toolName
+        // Only DesignSync carries a design project id; a malformed tool_input
+        // must never fail the whole event decode, so read it defensively.
+        if toolName == "DesignSync",
+            let toolInput = try? container.nestedContainer(
+                keyedBy: ToolInputKeys.self, forKey: .toolInput)
+        {
+            designProjectID = try? toolInput.decode(String.self, forKey: .projectId)
+        } else {
+            designProjectID = nil
+        }
     }
 }
 
@@ -140,6 +172,34 @@ public enum ClaudeHookMapper {
         default:
             return nil
         }
+    }
+}
+
+// MARK: - Claude Design session routing
+
+/// Learns which Claude Design project each session is driving, from the
+/// `DesignSync` events that session emits. The Design drop is a
+/// `design/p/<projectId>` window with no transcript and no session-id match, so
+/// its only ground truth is the driving session's lifecycle — and a `Stop`
+/// (turn-end) carries no projectId. This router bridges that gap: DesignSync
+/// events (which DO carry the projectId) register the association, so a later
+/// `Stop` from the same session can still be routed to the Design drop. Keyed by
+/// CLI session id; only DesignSync events register.
+public struct DesignSessionRouter: Sendable {
+    private var projectForSession: [String: String] = [:]
+
+    public init() {}
+
+    /// Record the design project a session is working on, if this event reveals
+    /// one. Non-DesignSync events (no `designProjectID`) are ignored.
+    public mutating func note(_ event: ClaudeHookEvent) {
+        guard let projectID = event.designProjectID else { return }
+        projectForSession[event.sessionID] = projectID
+    }
+
+    /// The Design project id this session is currently driving, or nil.
+    public func projectID(forSession sessionID: String) -> String? {
+        projectForSession[sessionID]
     }
 }
 

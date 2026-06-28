@@ -66,3 +66,22 @@ public enum ClaudeDeepLink {
         return "claude://claude.ai/" + parts.joined(separator: "/")
     }
 }
+
+/// The Claude Desktop "Design" surface. A Design window's drop is identified by
+/// a `claude.ai/design/p/<projectId>` content URL — a route distinct from the
+/// `epitaxy`/`cowork` + `local_<id>` form of Cowork/Code sessions, so it never
+/// resolves to a local session. The same `projectId` appears in `DesignSync`
+/// hook events (`tool_input.projectId`), which is how a Design drop is tied to
+/// its driving session's lifecycle for accurate status.
+public enum ClaudeDesignURL {
+    /// The design project id for a `claude.ai/design/p/<id>` content URL, or nil
+    /// when the URL isn't a Design surface.
+    public static func projectID(forContentURL url: String) -> String? {
+        guard let comps = URLComponents(string: ContentURL.normalize(url)),
+            comps.host == "claude.ai"
+        else { return nil }
+        let parts = comps.path.split(separator: "/").map(String.init)
+        guard parts.count >= 3, parts[0] == "design", parts[1] == "p" else { return nil }
+        return parts[2]
+    }
+}

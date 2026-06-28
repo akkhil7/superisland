@@ -39,6 +39,12 @@ final class AppController: ObservableObject {
     /// approval — Claude Desktop fires no Notification for in-app prompts).
     private var claudeToolGeneration: [UUID: Int] = [:]
 
+    /// Learns session → Claude Design project from `DesignSync` events, so a
+    /// Design window's `design/p/<id>` drop — which matches no session id and has
+    /// no transcript — can be driven by its session's lifecycle (see
+    /// `matchClaudeDrop`).
+    private var designRouter = DesignSessionRouter()
+
     /// Last `afterAgentResponse` text per Cursor conversation id, classified at
     /// `stop` to tell "done" from "waiting on you" (the stop payload has no text).
     private var cursorLastResponse: [String: String] = [:]
@@ -504,6 +510,10 @@ final class AppController: ObservableObject {
                 + "permMode=\(event.permissionMode ?? "-") sid=\(event.sessionID.prefix(8)) "
                 + "tty=\(event.tty ?? "-") msg=\(event.message?.prefix(120) ?? "-")"
         )
+        // A DesignSync event reveals which Claude Design project this session is
+        // driving. Learn it before matching, so even a later Stop (whose payload
+        // has no projectId) can be routed to the Design drop.
+        designRouter.note(event)
         guard let update = ClaudeHookMapper.update(for: event) else {
             HookDebugLog.log("  → unmapped, ignored")
             return
@@ -610,6 +620,19 @@ final class AppController: ObservableObject {
         }
         if let drop = terminalDrop(tty: event.tty) {
             return (drop, AgentSessionLabel.label(agent: "Claude Code", prompt: event.prompt))
+        }
+        // Claude Design: the window is a `design/p/<projectId>` drop that matches
+        // no session id and has no transcript. Route via the project this session
+        // is driving (learned from its DesignSync events). nil label keeps the
+        // drop's existing window-derived title.
+        if let projectID = designRouter.projectID(forSession: event.sessionID),
+            let drop = store.drops.first(where: {
+                $0.target.bundleID == ClaudeDeepLink.bundleID
+                    && ClaudeDesignURL.projectID(forContentURL: $0.target.contentURL ?? "")
+                        == projectID
+            })
+        {
+            return (drop, nil)
         }
         return nil
     }
