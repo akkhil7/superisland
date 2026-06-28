@@ -303,5 +303,6 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 
 ## Notes / Known behavior
 
+- A drop that is already showing a banner and transitions from one alerting state to another (`needsAttention → done`) re-raises (`bannerAction` returns `.raise`) and therefore chimes again. This is intentional: `done` is a genuinely new notification worth announcing. Only `.refresh` (same alerting status, text update) stays silent.
 - If multiple drops raise banners within a single `evaluateAlerts` pass, the chime plays once per raised drop. In practice transitions arrive one event at a time, so this is rare; no debounce is added (YAGNI). Revisit only if overlapping chimes become a real annoyance.
 - The chime is inherently gated to the `.notify` alert level: `evaluateAlerts` returns early when `settings.alertLevel.showsBanner` is false, so the `.raise` path (and thus the chime) is never reached at lower levels.
