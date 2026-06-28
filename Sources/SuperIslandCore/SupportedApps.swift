@@ -28,12 +28,12 @@ public enum SupportedApps {
         chrome, chromeCanary, brave,
         // Terminals
         terminal, iterm,
-        // Editors — Cursor + VS Code (stable). Insiders/VSCodium are
-        // intentionally excluded from the supported set.
-        EditorApp.cursor, EditorApp.vsCode,
-        // AI desktop apps
+        // Editor — VS Code (stable). Insiders/VSCodium excluded.
+        EditorApp.vsCode,
+        // AI desktop agents
         ClaudeDeepLink.bundleID,  // Claude Desktop
         CodexDeepLink.bundleID,  // Codex
+        CursorDeepLink.bundleID,  // Cursor (agent)
     ]
 
     /// Whether SuperIsland supports placing a drop on the app with this bundle id.
@@ -51,7 +51,7 @@ public enum SupportedApps {
         case brave: return "Brave"
         case terminal: return "Terminal"
         case iterm: return "iTerm"
-        case EditorApp.cursor: return "Cursor"
+        case CursorDeepLink.bundleID: return "Cursor"
         case EditorApp.vsCode: return "VS Code"
         case ClaudeDeepLink.bundleID: return "Claude Desktop"
         case CodexDeepLink.bundleID: return "Codex"
@@ -72,6 +72,7 @@ public enum RequiredIntegration: String, Sendable {
     case shell  // terminals + editors (status via integrated-terminal shell hooks)
     case claude
     case codex
+    case cursor
 
     /// The integration the app with this bundle id needs, or nil if it needs
     /// none. Every entry in `SupportedApps.bundleIDs` maps to a case.
@@ -79,13 +80,14 @@ public enum RequiredIntegration: String, Sendable {
         switch bundleID {
         case SupportedApps.chrome, SupportedApps.chromeCanary, SupportedApps.brave:
             return .chrome
-        case SupportedApps.terminal, SupportedApps.iterm,
-            EditorApp.cursor, EditorApp.vsCode:
+        case SupportedApps.terminal, SupportedApps.iterm, EditorApp.vsCode:
             return .shell
         case ClaudeDeepLink.bundleID:
             return .claude
         case CodexDeepLink.bundleID:
             return .codex
+        case CursorDeepLink.bundleID:
+            return .cursor
         default:
             return nil
         }
@@ -102,6 +104,8 @@ public enum RequiredIntegration: String, Sendable {
             return "Claude integration isn't installed — set it up in Settings → Integrations"
         case .codex:
             return "Codex integration is off — turn it on in Settings → Integrations"
+        case .cursor:
+            return "Cursor integration isn't installed — set it up in Settings → Integrations"
         }
     }
 }

@@ -9,7 +9,7 @@ final class SupportedAppsTests: XCTestCase {
             "com.brave.Browser",
             "com.apple.Terminal",
             "com.googlecode.iterm2",
-            EditorApp.cursor,
+            CursorDeepLink.bundleID,
             EditorApp.vsCode,
             ClaudeDeepLink.bundleID,
             CodexDeepLink.bundleID,
@@ -44,7 +44,7 @@ final class SupportedAppsTests: XCTestCase {
         XCTAssertEqual(SupportedApps.displayName(bundleID: "com.google.Chrome"), "Google Chrome")
         XCTAssertEqual(SupportedApps.displayName(bundleID: "com.apple.Terminal"), "Terminal")
         XCTAssertEqual(SupportedApps.displayName(bundleID: "com.googlecode.iterm2"), "iTerm")
-        XCTAssertEqual(SupportedApps.displayName(bundleID: EditorApp.cursor), "Cursor")
+        XCTAssertEqual(SupportedApps.displayName(bundleID: CursorDeepLink.bundleID), "Cursor")
         XCTAssertEqual(SupportedApps.displayName(bundleID: EditorApp.vsCode), "VS Code")
         XCTAssertEqual(
             SupportedApps.displayName(bundleID: ClaudeDeepLink.bundleID), "Claude Desktop")
@@ -56,7 +56,7 @@ final class SupportedAppsTests: XCTestCase {
         XCTAssertEqual(RequiredIntegration.required(forBundleID: "com.brave.Browser"), .chrome)
         XCTAssertEqual(RequiredIntegration.required(forBundleID: "com.apple.Terminal"), .shell)
         XCTAssertEqual(RequiredIntegration.required(forBundleID: "com.googlecode.iterm2"), .shell)
-        XCTAssertEqual(RequiredIntegration.required(forBundleID: EditorApp.cursor), .shell)
+        XCTAssertEqual(RequiredIntegration.required(forBundleID: CursorDeepLink.bundleID), .cursor)
         XCTAssertEqual(RequiredIntegration.required(forBundleID: EditorApp.vsCode), .shell)
         XCTAssertEqual(RequiredIntegration.required(forBundleID: ClaudeDeepLink.bundleID), .claude)
         XCTAssertEqual(RequiredIntegration.required(forBundleID: CodexDeepLink.bundleID), .codex)

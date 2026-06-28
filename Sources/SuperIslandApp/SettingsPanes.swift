@@ -202,17 +202,20 @@ struct IntegrationsSettingsPane: View {
     @EnvironmentObject var shellIntegration: ShellIntegration
     @EnvironmentObject var chromeIntegration: ChromeIntegration
     @EnvironmentObject var claudeIntegration: ClaudeIntegration
+    @EnvironmentObject var cursorIntegration: CursorIntegration
     @EnvironmentObject var codexIntegration: CodexIntegration
 
     @State private var shellError: String?
     @State private var chromeError: String?
     @State private var claudeError: String?
+    @State private var cursorError: String?
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
                 shellCard
                 claudeCard
+                cursorCard
                 codexCard
                 chromeCard
             }
@@ -223,6 +226,7 @@ struct IntegrationsSettingsPane: View {
             shellIntegration.refresh()
             chromeIntegration.refresh()
             claudeIntegration.refresh()
+            cursorIntegration.refresh()
         }
     }
 
@@ -290,6 +294,55 @@ struct IntegrationsSettingsPane: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.small)
                     Text("Adds hook entries to ~/.claude/settings.json")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                }
+            }
+        }
+    }
+
+    // MARK: Cursor
+
+    private var cursorCard: some View {
+        IntegrationCard(
+            icon: "cursorarrow.rays", color: .indigo,
+            title: "Cursor",
+            status: cursorIntegration.isInstalled ? ("Active", .green) : ("Not set up", .gray)
+        ) {
+            Text(
+                "Live status for Cursor's agent (Composer) via Cursor's own hooks: the instant Cursor finishes or needs you, your drop updates — even in background windows. No AI calls."
+            )
+            .settingsCaption()
+
+            if let cursorError {
+                Text(cursorError).font(.caption).foregroundStyle(.red)
+            }
+
+            if cursorIntegration.isInstalled {
+                HStack {
+                    Text("Applies to conversations after setup. Restart Cursor to load hooks.")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                    Spacer()
+                    Button("Uninstall", role: .destructive) {
+                        cursorIntegration.uninstall()
+                    }
+                    .controlSize(.small)
+                }
+            } else {
+                HStack {
+                    Button("Set Up Cursor Hooks") {
+                        do {
+                            try cursorIntegration.install()
+                            cursorError = nil
+                        } catch {
+                            cursorError = "Setup failed: \(error.localizedDescription)"
+                        }
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.small)
+                    Text("Adds hook entries to ~/.cursor/hooks.json")
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                     Spacer()

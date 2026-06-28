@@ -37,6 +37,7 @@ struct SuperIslandApp: App {
                 .environmentObject(appDelegate.controller.shellIntegration)
                 .environmentObject(appDelegate.controller.chromeIntegration)
                 .environmentObject(appDelegate.controller.claudeIntegration)
+                .environmentObject(appDelegate.controller.cursorIntegration)
                 .environmentObject(appDelegate.controller.codexIntegration)
                 .environmentObject(appDelegate.controller.auth)
         }

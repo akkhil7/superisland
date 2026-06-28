@@ -11,6 +11,7 @@ struct OnboardingView: View {
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var shellIntegration: ShellIntegration
     @EnvironmentObject var claudeIntegration: ClaudeIntegration
+    @EnvironmentObject var cursorIntegration: CursorIntegration
     @EnvironmentObject var chromeIntegration: ChromeIntegration
     @EnvironmentObject var codexIntegration: CodexIntegration
     @EnvironmentObject var auth: AuthService
@@ -250,6 +251,7 @@ private struct IntegrationsStepView: View {
     @EnvironmentObject var settings: Settings
     @EnvironmentObject var shellIntegration: ShellIntegration
     @EnvironmentObject var claudeIntegration: ClaudeIntegration
+    @EnvironmentObject var cursorIntegration: CursorIntegration
     @EnvironmentObject var chromeIntegration: ChromeIntegration
     @EnvironmentObject var codexIntegration: CodexIntegration
 
@@ -293,6 +295,21 @@ private struct IntegrationsStepView: View {
                     }
                 }
 
+                // Cursor
+                IntegrationRow(
+                    icon: "cursorarrow.rays", name: "Cursor",
+                    caption: "agent hooks · live even in background windows"
+                ) {
+                    statusChip(active: cursorIntegration.isInstalled)
+                    installToggle(isOn: cursorIntegration.isInstalled) { on in
+                        if on {
+                            try cursorIntegration.install()
+                        } else {
+                            cursorIntegration.uninstall()
+                        }
+                    }
+                }
+
                 // Codex — no install; the switch gates journal reading.
                 IntegrationRow(
                     icon: "chevron.left.forwardslash.chevron.right", name: "Codex",
@@ -332,6 +349,7 @@ private struct IntegrationsStepView: View {
     private func refreshAll() {
         shellIntegration.refresh()
         claudeIntegration.refresh()
+        cursorIntegration.refresh()
         chromeIntegration.refresh()
     }
 

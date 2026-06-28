@@ -2,6 +2,38 @@ import Foundation
 import Combine
 import SuperIslandCore
 
+/// Classify an agent's final turn message into done vs needsAttention, shared
+/// by the Claude and Cursor integrations. Uses the hosted Haiku proxy when a
+/// bearer token is available; falls back to a structural request-detection
+/// heuristic. nil for an empty message.
+@MainActor
+func classifyAgentFinalMessage(
+    _ text: String, agentName: String, bearer: String?
+) async -> (status: DropStatus, reason: String)? {
+    let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    guard !trimmed.isEmpty else { return nil }
+    if let bearer, !bearer.isEmpty {
+        do {
+            let verdict = try await ClaudeClassifier(
+                auth: .proxy(url: BackendConfig.classifyURL, bearer: bearer),
+                model: ClassifierProtocolBuilder.defaultModel
+            ).classifyTurnEndMessage(trimmed)
+            switch verdict.status {
+            case .needsAttention: return (.needsAttention, verdict.reason)
+            case .working: return (.working, "\(agentName) is working…")
+            default: return (.done, verdict.reason)
+            }
+        } catch let ClassifierError.quotaExceeded(used, cap) {
+            return (.unknown, "Daily limit reached (\(used)/\(cap))")
+        } catch {
+            // fall through to the structural heuristic
+        }
+    }
+    return ClaudeTranscript.looksLikeRequest(trimmed)
+        ? (.needsAttention, "\(agentName) is waiting for your reply")
+        : (.done, "\(agentName) finished — ready for you")
+}
+
 /// Claude Desktop integration via Claude Code hooks: a tiny hook script
 /// forwards lifecycle events (prompt submitted, finished, needs input) to
 /// SuperIsland's local server, giving event-driven ground truth for Cowork and
@@ -177,28 +209,7 @@ final class ClaudeIntegration: ObservableObject {
     func classifyFinalMessage(
         _ text: String, bearer: String?
     ) async -> (status: DropStatus, reason: String)? {
-        let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return nil }
-        if let bearer, !bearer.isEmpty {
-            do {
-                let verdict = try await ClaudeClassifier(
-                    auth: .proxy(url: BackendConfig.classifyURL, bearer: bearer),
-                    model: ClassifierProtocolBuilder.defaultModel
-                ).classifyTurnEndMessage(trimmed)
-                switch verdict.status {
-                case .needsAttention: return (.needsAttention, verdict.reason)
-                case .working: return (.working, "Claude is working…")
-                default: return (.done, verdict.reason)
-                }
-            } catch let ClassifierError.quotaExceeded(used, cap) {
-                return (.unknown, "Daily limit reached (\(used)/\(cap))")
-            } catch {
-                // transport/other error — fall through to the structural heuristic below
-            }
-        }
-        return ClaudeTranscript.looksLikeRequest(trimmed)
-            ? (.needsAttention, "Claude is waiting for your reply")
-            : (.done, "Claude finished — ready for you")
+        await classifyAgentFinalMessage(text, agentName: "Claude", bearer: bearer)
     }
 
     /// True when the transcript tail shows a tool still pending — a `tool_use`

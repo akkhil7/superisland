@@ -40,6 +40,7 @@ final class OnboardingWindowController: NSObject, NSWindowDelegate {
             .environmentObject(controller.settings)
             .environmentObject(controller.shellIntegration)
             .environmentObject(controller.claudeIntegration)
+            .environmentObject(controller.cursorIntegration)
             .environmentObject(controller.chromeIntegration)
             .environmentObject(controller.codexIntegration)
             .environmentObject(controller.auth)

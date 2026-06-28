@@ -62,8 +62,8 @@ final class DropSourceTests: XCTestCase {
         )
         XCTAssertEqual(
             name(
-                EditorApp.cursor,
-                .editor(filePath: "/a.swift", fileName: "a.swift", workspaceName: "proj")),
+                CursorDeepLink.bundleID,
+                .generic(axWindowTitle: nil, axWindowIndex: nil)),
             "Cursor"
         )
         XCTAssertEqual(
