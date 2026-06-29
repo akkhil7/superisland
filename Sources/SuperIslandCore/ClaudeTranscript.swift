@@ -11,6 +11,10 @@ public enum ClaudeTranscript {
         /// A tool call is in flight (tool_use with no result yet) — running or
         /// awaiting approval.
         case working
+        /// The pending tool_use is one that always blocks on the user
+        /// (AskUserQuestion's multi-select, …) — Claude can't proceed until you
+        /// answer, so this is needs-you, not "running". See `ClaudeInputTools`.
+        case awaitingInput
         /// Claude ended its turn; `text` is its last message to the user. The
         /// caller decides done-vs-needs-you (a question/request → needs-you).
         case turnEnded(text: String)
@@ -44,6 +48,7 @@ public enum ClaudeTranscript {
     public static func state(fromTail tail: String) -> State {
         var lastToolUseIndex = -1
         var lastToolResultIndex = -1
+        var lastToolUseName: String?
         var lastAssistantText: String?
         var index = 0
 
@@ -60,6 +65,7 @@ public enum ClaudeTranscript {
                 switch block["type"] as? String {
                 case "tool_use" where role == "assistant":
                     lastToolUseIndex = index
+                    lastToolUseName = block["name"] as? String
                 case "tool_result" where role == "user":
                     lastToolResultIndex = index
                 case "text" where role == "assistant":
@@ -76,7 +82,7 @@ public enum ClaudeTranscript {
 
         // A tool_use more recent than any tool_result means a tool is pending.
         if lastToolUseIndex > lastToolResultIndex {
-            return .working
+            return ClaudeInputTools.blocksForUserInput(lastToolUseName) ? .awaitingInput : .working
         }
         if let text = lastAssistantText {
             return .turnEnded(text: text)

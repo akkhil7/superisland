@@ -195,6 +195,10 @@ final class ClaudeIntegration: ObservableObject {
         switch ClaudeTranscript.state(fromTail: tail) {
         case .working:
             return (.working, "Claude is working…")
+        case .awaitingInput:
+            // A tool that always blocks on the user (AskUserQuestion) is pending
+            // — surface it as needs-you even without a hook, no AI call needed.
+            return (.needsAttention, "Claude needs your input")
         case .unknown:
             return nil
         case .turnEnded(let text):
@@ -220,7 +224,10 @@ final class ClaudeIntegration: ObservableObject {
     /// the `PostToolUse` hook is delayed or never reaches us.
     func isToolPending(transcriptPath: String) -> Bool {
         guard let tail = Self.readTail(path: transcriptPath, bytes: 64 * 1024) else { return false }
-        return ClaudeTranscript.state(fromTail: tail) == .working
+        switch ClaudeTranscript.state(fromTail: tail) {
+        case .working, .awaitingInput: return true  // a tool_use with no result yet
+        case .turnEnded, .unknown: return false
+        }
     }
 
     private static func readTail(path: String, bytes: Int) -> String? {

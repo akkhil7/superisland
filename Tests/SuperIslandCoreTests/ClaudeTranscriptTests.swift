@@ -36,6 +36,29 @@ final class ClaudeTranscriptTests: XCTestCase {
         XCTAssertEqual(ClaudeTranscript.state(fromTail: tail), .working)
     }
 
+    func testTrailingAskUserQuestionIsAwaitingInput() {
+        // A pending AskUserQuestion tool_use isn't a tool "running" — it's
+        // blocked on the user's answer. It must read as awaitingInput so a
+        // hookless Claude Desktop session still surfaces as needs-you.
+        let tail = """
+            {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Pick one."}]}}
+            {"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"AskUserQuestion"}]}}
+            """
+        XCTAssertEqual(ClaudeTranscript.state(fromTail: tail), .awaitingInput)
+    }
+
+    func testAnsweredAskUserQuestionIsNoLongerAwaiting() {
+        // Once answered, a tool_result follows the tool_use — the session has
+        // resumed, so it's no longer awaiting input.
+        let tail = """
+            {"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"AskUserQuestion"}]}}
+            {"type":"user","message":{"role":"user","content":[{"type":"tool_result"}]}}
+            {"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Thanks — proceeding."}]}}
+            """
+        XCTAssertEqual(
+            ClaudeTranscript.state(fromTail: tail), .turnEnded(text: "Thanks — proceeding."))
+    }
+
     func testToolResultAfterToolUseIsTurnEnded() {
         let tail = """
             {"type":"assistant","message":{"role":"assistant","content":[{"type":"tool_use","name":"Bash"}]}}

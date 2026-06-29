@@ -111,6 +111,23 @@ public struct ClaudeHookEvent: Decodable, Equatable, Sendable {
 
 // MARK: - Event → status mapping
 
+/// Tools whose invocation blocks on the user — Claude can't proceed until a
+/// human answers, in EVERY permission mode (there's no "auto-run" that skips
+/// them, unlike a tool permission prompt). So an in-flight call to one of these
+/// is "needs you", not "working": no 5-second stall and no permission-mode gate
+/// applies, because the tool's whole purpose is to wait for you. The signal is
+/// the tool name; the same set classifies both hook events and transcript tails.
+public enum ClaudeInputTools {
+    /// Tool names that always wait on the user. `AskUserQuestion` is Claude's
+    /// single-/multi-select question prompt.
+    public static let names: Set<String> = ["AskUserQuestion"]
+
+    public static func blocksForUserInput(_ toolName: String?) -> Bool {
+        guard let toolName else { return false }
+        return names.contains(toolName)
+    }
+}
+
 /// SuperIsland-status semantics for Claude Code lifecycle events. Hooks are ground
 /// truth: they replace AI classification for sessions that emit them.
 public enum ClaudeHookMapper {
@@ -129,10 +146,20 @@ public enum ClaudeHookMapper {
         switch event.event {
         case "UserPromptSubmit":
             return Update(status: .working, reason: "Claude is working…")
-        case "PreToolUse", "PostToolUse":
-            // The agent is actively using a tool — i.e. it resumed. PostToolUse
-            // is the key one: it fires right after you approve a permission
-            // prompt and the tool runs, clearing the Notification's
+        case "PreToolUse":
+            // A tool that always blocks on the user (AskUserQuestion's
+            // multi-select, and the like) means "needs you" the instant it's
+            // invoked — independent of permission mode, so the auto/bypass
+            // permission-stall that skips ordinary tools must not skip these.
+            // Otherwise it's just a tool running.
+            if ClaudeInputTools.blocksForUserInput(event.toolName) {
+                return Update(status: .needsAttention, reason: "Claude needs your input")
+            }
+            return Update(status: .working, reason: "Claude is working…")
+        case "PostToolUse":
+            // The agent is actively using a tool — i.e. it resumed. This is the
+            // key one: it fires right after you approve a permission prompt (or
+            // answer an AskUserQuestion) and the tool runs, clearing the prior
             // needsAttention without waiting for the turn to finish.
             return Update(status: .working, reason: "Claude is working…")
         case "Stop":

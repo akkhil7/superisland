@@ -45,6 +45,30 @@ final class ClaudeHookSupportTests: XCTestCase {
         XCTAssertNil(status("SomethingElse"))  // unmapped event ignored
     }
 
+    func testAskUserQuestionPreToolUseNeedsAttention() {
+        // The multi-select / question tool always blocks on the user, no matter
+        // the permission mode — so a PreToolUse for it is an immediate "needs
+        // you", not "working". (A blocked permission prompt fires no hook, but
+        // this tool's PreToolUse is itself the signal.)
+        let ask = ClaudeHookMapper.update(
+            for: ClaudeHookEvent(
+                sessionID: "s", event: "PreToolUse", toolName: "AskUserQuestion"
+            ))
+        XCTAssertEqual(ask?.status, .needsAttention)
+
+        // An ordinary tool is still just "working" while it runs.
+        let bash = ClaudeHookMapper.update(
+            for: ClaudeHookEvent(sessionID: "s", event: "PreToolUse", toolName: "Bash"))
+        XCTAssertEqual(bash?.status, .working)
+
+        // Answering it resumes the agent: PostToolUse clears needsAttention.
+        let answered = ClaudeHookMapper.update(
+            for: ClaudeHookEvent(
+                sessionID: "s", event: "PostToolUse", toolName: "AskUserQuestion"
+            ))
+        XCTAssertEqual(answered?.status, .working)
+    }
+
     func testManagedEventsCoverToolUse() {
         // Tool-use events must be installed, or the hook never delivers them.
         XCTAssertTrue(ClaudeHooksConfigurator.events.contains("PreToolUse"))
