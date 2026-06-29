@@ -1092,6 +1092,16 @@ final class AppController: ObservableObject {
             threadLabel = claudeIntegration.sessionTitle(forContentURL: url)
         }
 
+        // Third gate (after "is the app supported" and "is its integration set
+        // up"): the screen showing right now must resolve to a concrete tab or
+        // session we can track. A drop on an in-app Settings pane, a chrome://
+        // page, or a window with no session would otherwise be a dead chip.
+        guard TargetMappability.canMap(locator: locator, contentURL: contentURL) else {
+            showToast("Not supported")
+            NSSound.beep()
+            return false
+        }
+
         let target = WindowTarget(
             bundleID: front.bundleID, appName: front.appName, pid: front.pid,
             windowID: front.windowID, windowTitle: front.title, locator: locator,
