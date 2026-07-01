@@ -280,7 +280,7 @@ struct NotchPlate: View {
 }
 
 /// The notch island: collapsed, it extends the notch with an in-progress count
-/// on the left and a needs-you count on the right. Click to expand it
+/// on the left and a needs-attention count on the right. Click to expand it
 /// vertically into the full drop list.
 struct IslandView: View {
     @EnvironmentObject var controller: AppController
@@ -293,18 +293,19 @@ struct IslandView: View {
     /// the transparent area around it.
     var onSize: (CGSize) -> Void = { _ in }
 
-    private var inProgress: [Drop] {
-        store.drops.filter { $0.status == .working || $0.status == .unknown }
-    }
-    private var needsAttention: [Drop] { store.drops.filter { $0.status == .needsAttention } }
-    private var done: [Drop] { store.drops.filter { $0.status == .done } }
-    private var needsYou: [Drop] { needsAttention + done }
+    private var inProgress: [Drop] { store.drops.inProgress }
+    private var needsAttention: [Drop] { store.drops.needsAttention }
+    private var done: [Drop] { store.drops.done }
+    private var needsYou: [Drop] { store.drops.needsYou }
 
     /// Right-side color: orange if anything needs attention, else green if
     /// anything is done, else a neutral done-green.
     private var rightColor: Color {
         !needsAttention.isEmpty ? IslandTint.attention : IslandTint.done
     }
+
+    /// Right-side glow: breathe only while something is actively waiting on you.
+    private var rightGlow: Bool { !needsAttention.isEmpty }
 
     /// The status color the notch should glow with, or nil for the plain black
     /// notch. Active only at the colored-notch alert level (or louder) when
@@ -362,7 +363,7 @@ struct IslandView: View {
             CountBadge(count: inProgress.count, color: IslandTint.working, glow: false)
                 .padding(.leading, 12)
             Spacer(minLength: NotchMetrics.width)
-            CountBadge(count: needsYou.count, color: rightColor, glow: !needsAttention.isEmpty)
+            CountBadge(count: needsAttention.count, color: rightColor, glow: rightGlow)
                 .padding(.trailing, 12)
         }
         .frame(width: contentWidth, height: NotchMetrics.height)
