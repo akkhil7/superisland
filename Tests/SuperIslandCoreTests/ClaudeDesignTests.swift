@@ -127,4 +127,36 @@ final class ClaudeDesignTests: XCTestCase {
         // The Stop resolves to a settled status (done), not the stuck "working".
         XCTAssertEqual(ClaudeHookMapper.update(for: stopEvent)?.status, .done)
     }
+
+    /// The needs-you counterpart: when a Design session pauses on an
+    /// AskUserQuestion (multi-select), that PreToolUse carries no projectId, yet
+    /// it must still route to the Design drop AND read as needsAttention — else
+    /// the Design window sits on "working" while it's really waiting on you. Proves
+    /// the association survives the non-DesignSync event and the input-blocking
+    /// tool maps to needs-you (in `auto` mode, where no permission stall fires).
+    func testDesignSyncSessionAskUserQuestionRoutesAsNeedsAttention() throws {
+        let designSync = """
+            {"session_id":"e7584c77-23e6-49c3-a65c-08a96f184e7f","hook_event_name":"PostToolUse",
+             "tool_name":"DesignSync",
+             "tool_input":{"method":"get_file","projectId":"114c975a-ea8d-4e8f-9243-7bdd7ced5194",
+             "path":"Whizibility Dashboard.dc.html"}}
+            """
+        let ask = """
+            {"session_id":"e7584c77-23e6-49c3-a65c-08a96f184e7f","hook_event_name":"PreToolUse",
+             "tool_name":"AskUserQuestion","permission_mode":"auto"}
+            """
+        let dropURL = "https://claude.ai/design/p/114c975a-ea8d-4e8f-9243-7bdd7ced5194"
+
+        var router = DesignSessionRouter()
+        router.note(try JSONDecoder().decode(ClaudeHookEvent.self, from: Data(designSync.utf8)))
+        let askEvent = try JSONDecoder().decode(ClaudeHookEvent.self, from: Data(ask.utf8))
+        router.note(askEvent)  // AskUserQuestion carries no projectId — association must persist.
+
+        // Still routes to the same Design drop…
+        XCTAssertEqual(
+            router.projectID(forSession: askEvent.sessionID),
+            ClaudeDesignURL.projectID(forContentURL: dropURL))
+        // …and the multi-select prompt reads as needs-you, not the stuck "working".
+        XCTAssertEqual(ClaudeHookMapper.update(for: askEvent)?.status, .needsAttention)
+    }
 }
